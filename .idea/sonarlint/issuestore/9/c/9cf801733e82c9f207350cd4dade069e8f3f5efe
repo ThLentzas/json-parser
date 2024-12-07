@@ -1,4 +1,9 @@
 
- 	java:S131"YComplete cases by adding the missing enum constants or add a default case to this switch.(»¬ˆÏıÿÿÿÿ8æ€²Ë·2J$154b578c-3e7e-464f-acdf-2a1e05f2202a
+Ÿ
+java:S1192*"WDefine a constant instead of duplicating this literal "Unexpected character: " 4 times.(„Š†Äûÿÿÿÿ8òÜêí¹2J$204706c7-e430-425a-8e0e-3d1c1f53a434
+z
+java:S1135"2Complete the task associated to this TODO comment.(Õ´Ğ¥üÿÿÿÿ8ˆİêí¹2J$2f7d3f47-402a-459d-9194-ae70ba27f1e1
+›
+java:S3776†"RRefactor this method to reduce its Cognitive Complexity from 23 to the 15 allowed.(ÉŒ•ûÿÿÿÿ8Œİêí¹2J$593049c0-e6b4-43eb-92e7-96f8d2cd95c6
 n
-java:S1068",Remove this unused "position" private field.(•È?8ç¹×¿·2J$d50f6ae2-5cee-4256-ac04-da69b1d7e8ec
+java:S1068",Remove this unused "position" private field.(•È?8 İêí¹2J$b52d92fa-c173-457a-a9a7-6c194cd2427f

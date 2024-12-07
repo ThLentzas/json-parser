@@ -55,8 +55,37 @@ public class Main {
         byte[] bytes = {34, 65, 92, 117, 68, 56, 51, 68, 92, 117, 68, 56, 51, 68, 66, -61, -87, 34};
         Decoder decoder = new Decoder();
         String jsonText = decoder.decode(bytes);
+        jsonText = "{  \"key\" : \"value\", \"key1\" : \"value\" }";
+        // toDo: for according to the string below how it is still valid and how we successfully we deal with all the whitespace added
+        jsonText = """
+        {
+            "Image": {
+                "Width":  800,
+                "Height": 600,
+                "Title":  "View from 15th Floor",
+                "Thumbnail": {
+                    "Url":    "http://www.example.com/image/481989943",                                         
+                    "Height": 125,
+                    "Width":  100
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                },
+                "Animated" : false,
+                "IDs": [116, 943, 234, 38793]
+              }
+          }""";
+        jsonText = "{\"xd\": 1}";
         Tokenizer tokenizer = new Tokenizer(jsonText.toCharArray());
+
         Parser parser = new Parser(tokenizer);
+
         parser.parse();
+        System.out.println();
     }
 }

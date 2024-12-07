@@ -1,8 +1,9 @@
 package org.example.exception;
 
-public class UnrecognizedTokenException extends RuntimeException {
+public class UnrecognizedTokenException extends TokenizerException {
 
     public UnrecognizedTokenException() {
+        super();
     }
 
     public UnrecognizedTokenException(String message) {

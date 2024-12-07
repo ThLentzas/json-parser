@@ -1,8 +1,9 @@
 package org.example.exception;
 
-public class UnexpectedCharacterException extends RuntimeException {
+public class UnexpectedCharacterException extends TokenizerException {
 
     public UnexpectedCharacterException() {
+        super();
     }
 
     public UnexpectedCharacterException(String message) {

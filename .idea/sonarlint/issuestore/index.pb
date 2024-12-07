@@ -17,8 +17,6 @@ a
 1src/main/java/org/example/parser/ParserToken.java,e\4\e4da79f9adad8f4b5c0ffdfceac5a6af52694b35
 e
 5src/main/java/org/example/parser/ParserTokenType.java,c\c\cccbbbf60409126881dbf4a2d476a43bbd1d4516
-g
-7src/main/java/org/example/exception/ParseException.java,c\d\cd5dd8f2f0f9094427b90e41b5eb13871dbffee3
 u
 Esrc/main/java/org/example/exception/UnexpectedCharacterException.java,9\4\948cead38306f3a951a72dadf6686441d80fecad
 s
@@ -33,3 +31,11 @@ V
 .src/main/java/org/example/decoder/Decoder.java,1\a\1ab8837b106e9347c3cf89989269969006b1f71f
 s
 Csrc/main/java/org/example/exception/UnterminatedValueException.java,1\8\18bc81e80c1d60522674d646eeac771cbfa14ac3
+u
+Esrc/main/java/org/example/exception/DuplicateObjectNameException.java,9\7\971a7a1dba13d21ba89307f246f718b227c3f787
+T
+$src/test/java/parser/ParserTest.java,8\d\8ddee117ea8e5772355d581ed9953514770cc37d
+k
+;src/main/java/org/example/exception/TokenizerException.java,5\a\5a4a1c1be2c29baffb5e23f271bad8fb0a72f653
+t
+Dsrc/main/java/org/example/exception/MalformedStructureException.java,9\b\9ba7d224f2f16147d37cf33b9951aa062da83bf9

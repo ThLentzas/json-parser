@@ -9,4 +9,8 @@ public final class ParserToken extends AbstractToken {
         super(startIndex, endIndex);
         this.type = type;
     }
+
+    public ParserTokenType getType() {
+        return type;
+    }
 }

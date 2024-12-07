@@ -4,27 +4,97 @@ import org.example.exception.UnexpectedCharacterException;
 import org.example.exception.UnrecognizedTokenException;
 import org.example.exception.UnterminatedValueException;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 
 public final class Tokenizer {
     private char[] buffer;
+    // toDo: explain position and tokenIndex
     private int position;
     private List<TokenizerToken> tokens;
     private int tokenIndex;
+    private boolean peeked;
+    // https://www.baeldung.com/java-deque-vs-stack
+    private Deque<Character> stack;
 
     public Tokenizer(char[] buffer) {
         this.buffer = buffer;
         this.tokens = new ArrayList<>();
+        stack = new ArrayDeque<>();
     }
 
-    public TokenizerToken nextToken() {
+    public TokenizerToken consume() {
+        if (this.position == this.buffer.length) {
+            return null;
+        }
+
+        // Read peek() below
+        if(this.peeked) {
+            TokenizerToken tmp = this.tokens.get(this.tokenIndex - 1);
+            this.position = tmp.getEndIndex() + 1;
+            peeked = false;
+            return tmp;
+        }
+
         tokenize();
-        return this.tokens.isEmpty() ? null : this.tokens.get(this.tokenIndex - 1);
+        return this.tokens.get(this.tokenIndex - 1);
+    }
+
+    /*
+     *  What does peek do is explained in the parseArray() and why do we need it. Below i will explain how we do it.
+     *
+     *  In order to 'peek' on the next element without advancing the index, this.position, we actually do advance the index
+     *  in order to find the next token, and then we reset it by keep track of its initial position. peek() will call
+     *  tokenize() and tokenize() will add the token in the list always at the end. Next when consume is called it will
+     *  always return the last element of the list which is the token we just peeked. Read below why we need to adjust
+     *  the position
+     */
+    public TokenizerToken peek() {
+        if (this.position == this.buffer.length) {
+            return null;
+        }
+
+        /*
+            Why do we need to reset the position after calling tokenize() in peek()?
+
+            The way peek() and consume() work together is that if peek() is called before consume() it adds the next
+            token in the tokens list, consume() then checks if peeked is true, and if so it sets it to false and returns
+            the last token in the list which is the one that was tokenized when peek() was called. If for the last
+            character peek() was called before consume(), this.position will be outside the bounds of the array because
+            we finished tokenizing the buffer but when consume() gets called it will check the position with the buffer's
+            length and because there will be equal it will not actually consume the token. To solve that issue, we reset
+            the position to the index before calling tokenize(). This way, when we check the last token, position will be
+            reset to its previous index, note it is not just position--, a token may advance this.position more than once
+            When peeked is true, consume will return the token, will always be the last token in the list, the one
+            we just peeked, and also advance the position to end index of the previous + 1, essentially advancing the
+            index to the start of the next token.
+
+            Let's consider this example: jsonText = "{\"key\": \"value\"}";
+                After parsing the value we need to peek, why it is explained in parseObject(). We call peek and now
+                position is at the index that the next token would start, but in this case we are done traversing the
+                buffer, so it is out of bounds. Next consume() gets called it checks the position against the length
+                of the buffer and returns because there are no more tokens to consume which is wrong we haven't consumed
+                the last one.
+                Resetting the position fixes the issue. When we peek for the last element, we reset the index to the start
+                of the token we just peeked. Next consume() will be called but now the position < length, and we can
+                consume the last token while at the same time adjusting the index. When the token we just peeked is consumed
+                we advance position to the index after the end index of the previous token, effectively moving it to the
+                start of the next token, in this case, it is the end of the array. This way we correctly peek and consume
+                all the tokens while adjust the index accordingly.
+         */
+        int initialPosition = this.position;
+        tokenize();
+        this.position = initialPosition;
+        peeked = true;
+
+        return this.tokens.get(this.tokenIndex - 1);
     }
 
     // toDO: Explain why we conditionally add number, string, boolean, null and not the structural characters. Also why
     //  we dont check for unicode code points for anything else other than string, review all the comments
+    // explain switch within a while loop with break and why while(true) is bad
     /*
         Lexical errors occur when individual tokens in the input do not conform to the rules of valid tokens in the
         JSON specification. It is the responsibility of the tokenizer to handle those errors. These errors will be handled
@@ -36,43 +106,55 @@ public final class Tokenizer {
             Unrecognized Character: our default case
      */
     private void tokenize() {
-        if (this.buffer.length == 0) {
-            return;
-        }
-
-        switch (buffer[this.position]) {
-            // We don't use isWhiteSpace() because Java and JSON RFC do not consider the same characters as whitespace
-            case ' ', '\n', '\r', '\t' -> this.position++;
-            case '{' ->
-                    this.tokens.add(new TokenizerToken(this.position, this.position++, TokenizerTokenType.LEFT_CURLY_BRACKET));
-            case '}' ->
-                    this.tokens.add(new TokenizerToken(this.position, this.position++, TokenizerTokenType.RIGHT_CURLY_BRACKET));
-            case '[' ->
-                    this.tokens.add(new TokenizerToken(this.position, this.position++, TokenizerTokenType.LEFT_SQUARE_BRACKET));
-            case ']' ->
-                    this.tokens.add(new TokenizerToken(this.position, this.position++, TokenizerTokenType.RIGHT_SQUARE_BRACKET));
+        skipWhiteSpace();
+        switch (this.buffer[this.position]) {
+            case '{' -> {
+                this.stack.push(this.buffer[this.position]);
+                this.tokens.add(new TokenizerToken(this.position, this.position++, TokenizerTokenType.LEFT_CURLY_BRACKET));
+            }
+            // upper bounds for numbers
+            case '}' -> {
+                if (stack.isEmpty()) {
+                    throw new UnexpectedCharacterException("Unexpected character: '}'");
+                }
+                this.stack.pop();
+                this.tokens.add(new TokenizerToken(this.position, this.position++, TokenizerTokenType.RIGHT_CURLY_BRACKET));
+            }
+            case '[' -> {
+                this.stack.push(this.buffer[this.position]);
+                this.tokens.add(new TokenizerToken(this.position, this.position++, TokenizerTokenType.LEFT_SQUARE_BRACKET));
+            }
+            case ']' -> {
+                if (stack.isEmpty()) {
+                    throw new UnexpectedCharacterException("Unexpected character: ']'");
+                }
+                this.stack.pop();
+                this.tokens.add(new TokenizerToken(this.position, this.position++, TokenizerTokenType.RIGHT_SQUARE_BRACKET));
+            }
             case ':' -> this.tokens.add(new TokenizerToken(this.position, this.position++, TokenizerTokenType.COLON));
             case ',' -> this.tokens.add(new TokenizerToken(this.position, this.position++, TokenizerTokenType.COMMA));
             // signs, decimal point and exponential notation
             case '-', '+', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', 'e', 'E' -> {
                 int initialPosition = this.position;
                 tokenizeNumber();
+                // position - 1, because position is at the 1st character after the end of number, out of the array if we had just number
+                // which means positions is already advanced we don't need to do, this.position++
                 this.tokens.add(new TokenizerToken(initialPosition, this.position - 1, TokenizerTokenType.NUMBER));
             }
             case '"' -> {
                 int initialPosition = this.position;
                 tokenizeString();
-                this.tokens.add(new TokenizerToken(initialPosition, this.position - 1, TokenizerTokenType.STRING));
+                this.tokens.add(new TokenizerToken(initialPosition, this.position++, TokenizerTokenType.STRING));
             }
             case 'f', 't' -> {
                 int initialPosition = this.position;
                 tokenizeBoolean();
-                this.tokens.add(new TokenizerToken(initialPosition, this.position, TokenizerTokenType.BOOLEAN));
+                this.tokens.add(new TokenizerToken(initialPosition, this.position++, TokenizerTokenType.BOOLEAN));
             }
             case 'n' -> {
                 int initialPosition = this.position;
                 tokenizeNull();
-                this.tokens.add(new TokenizerToken(initialPosition, this.position, TokenizerTokenType.NULL));
+                this.tokens.add(new TokenizerToken(initialPosition, this.position++, TokenizerTokenType.NULL));
             }
             default -> throw new UnrecognizedTokenException("Unrecognized token: " + this.buffer[this.position]);
         }
@@ -98,11 +180,11 @@ public final class Tokenizer {
         NaN and -+Infinity are not valid values for JSON Number according to rfc
     */
     private void tokenizeNumber() {
-        if (buffer[this.position] == '+') {
+        if (this.buffer[this.position] == '+') {
             throw new UnexpectedCharacterException("JSON specification prohibits numbers from being prefixed with a plus sign");
         }
 
-        if (buffer[this.position] == '-') {
+        if (this.buffer[this.position] == '-') {
             tokenizeNegative();
             return;
         }
@@ -126,7 +208,6 @@ public final class Tokenizer {
                 && this.buffer[this.position + 2] != '.') {
             throw new UnexpectedCharacterException("Leading zeros are not allowed");
         }
-
         this.position++;
         tokenizerNumberHelper();
     }
@@ -143,7 +224,6 @@ public final class Tokenizer {
         if (this.buffer[this.position] == '.') {
             throw new UnexpectedCharacterException("A leading digit is required before a decimal point");
         }
-
         tokenizerNumberHelper();
     }
 
@@ -152,7 +232,7 @@ public final class Tokenizer {
     /**
      * After either {@link #tokenizeNegative()} or {@link #tokenizePositive()} confirmed that the number has a valid
      * initial structure, this method verifies the remaining characters to ensure they adhere to the JSON Number
-     * specification.
+     * specification. Note: hex values are not allowed.
      *
      * @throws UnexpectedCharacterException 1) The decimal point is not followed by a digit 2) The exponential notation
      *                                      is not followed by a digit 3) We encountered an expected character for JSON Number
@@ -200,7 +280,15 @@ public final class Tokenizer {
         // If endOfNumber is true before we are done iterating over the buffer case we encountered an unexpected
         // character. e.g. 1234a
         if (endOfNumber) {
-            throw new UnexpectedCharacterException("Unexpected character " + this.buffer[this.position] + " found at " + this.position);
+            switch (this.buffer[this.position]) {
+                case ',', ']', '}', ' ', '\n', '\r', '\t' -> {
+                    if (stack.isEmpty()) {
+                        throw new UnexpectedCharacterException("Unexpected character " + this.buffer[this.position] + " found at " + this.position);
+                    }
+                }
+                default ->
+                        throw new UnexpectedCharacterException("Unexpected character '" + this.buffer[this.position] + "' found at " + this.position);
+            }
         }
     }
 
@@ -220,17 +308,16 @@ public final class Tokenizer {
      */
     private void tokenizeString() {
         this.position++;
-        while (this.position < this.buffer.length) {
-            // Check if the current character is a backslash ('\'), which indicates the start of a potential unicode escape sequence.
-            // We use '\\' because this how we represent a literal backslash.
+        // toDO: explain why we can not iterate until the end of buffer
+        while (this.position < this.buffer.length && this.buffer[this.position] != '"') {
+            // Check if the current character is a backslash ('\'), which indicates the start of a potential escape character/sequence.
             if (this.buffer[this.position] == '\\') {
                 handleEscapeCharacter();
             }
             this.position++;
         }
 
-        // Case: "(1 character), any string that does not end with "
-        if (this.buffer.length == 1 || this.buffer[this.position - 1] != '"') {
+        if (this.buffer.length == this.position) {
             throw new UnterminatedValueException("Unterminated value for: " + TokenizerTokenType.STRING);
         }
     }
@@ -294,9 +381,7 @@ public final class Tokenizer {
                 an unpaired backslash and the next character must be a valid escape character.
                 Once we know that the next character is a valid escape character we reduced the number of backslashes from n
                 to n / 2 + 1(unpaired). We mimic this behaviour for this.position. this.position = this.position / 2 + 1
-                this.position = 3. Position now is at index 3, the unpaired backslash. At this point we need to check
-                the next character, we already know that this character is a valid escape character, so we advance the
-                index one more time. Overall, this.position = this.position / 2 + 1(unpaired) + 1(next character)
+                this.position = 3. Position now is at index 3, the escaped character
          */
         if (count % 2 != 0) {
             if (!isEscapeCharacter(this.buffer[this.position])) {
@@ -304,30 +389,13 @@ public final class Tokenizer {
             }
 
             /*
-                Case: ['"', '\', '"']
-                For any odd number of backslashes where the unpaired backslash is followed by '"' and the '"' is
-                the last character of the string we must throw an exception it is not a valid string.
-
-                What happens if we don't consider this case?
-                When we try to merge '\' and '"' as explained in mapEscapeCharacter(), we get '\"' which is '"' as a
-                character not as the start/end of a string. Our iteration ends ['"', '"'] we look at the last character
-                of the string to see if it is '"' to verify that we have enclosing quotation mark and it passes. This is
-                not the expected behaviour the above input is not valid, it is a string that starts with '"', valid so
-                far then it has an escaped character '"' but not enclosing quotation mark. If the escaped character
-                that was found is '"' and there are no more characters in the string to potentially have a valid string
-                we need to throw
-             */
-            if (this.buffer[this.position] == '"' && this.position + 1 == this.buffer.length) {
-                throw new UnexpectedCharacterException("Unexpected escape character: " + this.buffer[this.position]);
-            }
-            /*
                 Case count = 1: When count = 1 there is no need to replace backslashes there is only 1 consecutive
                 backslash, and we don't need to adjust the position of the index. It points to the character that broke
                 the sequence which is the one after the single backslash
              */
             if (count != 1) {
                 this.buffer = String.valueOf(this.buffer).replace("\\\\", "\\").toCharArray();
-                this.position = this.position / 2 + 2;
+                this.position = this.position / 2 + 1;
             }
             if (this.buffer[this.position] == 'u') {
                 handleUnicodeEscapeSequence();
@@ -370,6 +438,13 @@ public final class Tokenizer {
             ['"', '\', 'b', '"'] Initially this.position is at 'b' after merging ['"', '\b', '"'] this.position would
             be at '"' index 2 in both cases. If we don't reset the index, the flow returns back to tokenizeString() which
             increments the position. If we don't reset the index we will miss on 1 character.
+            It is very important to not visit the character we just merged. In the case of, "\", we merge it into "" which
+            looks like a valid string BUT it is not because the 2nd quotation mark was an escape character and not a closing
+            one for the string to end. By decreasing the position, this.position = 1(which is the merged character) BUT
+            since the control returns to tokenizeString() after handleEscapeCharacter() returns and the position is
+            incremented. If there are no more characters, this.position == this.buffer.length is true which means invalid
+            string or if there are more characters to traverse and none of them is a closing quotation mark at some point
+            this.position == this.buffer.length will also be true which will also lead to an invalid string
          */
         this.position--;
     }
@@ -554,12 +629,13 @@ public final class Tokenizer {
         }
     }
 
+    // toDo: change false, true, null for upcoming whitespaces like we did with number
     /*
         If we pass more or less characters than false they are not valid JSON Boolean values.
         For example, "falses" or "fals" or "false  "(trailing whitespaces)
      */
     private void tokenizeFalse() {
-        if (this.buffer.length != 5) {
+        if (this.position + 4 > this.buffer.length) {
             throw new UnrecognizedTokenException("Unrecognized token: " + String.valueOf(this.buffer));
         }
 
@@ -567,7 +643,7 @@ public final class Tokenizer {
                 || this.buffer[++this.position] != 'l'
                 || this.buffer[++this.position] != 's'
                 || this.buffer[++this.position] != 'e') {
-            throw new UnrecognizedTokenException("Unrecognized token: " + String.valueOf(this.buffer));
+            throw new UnrecognizedTokenException("Unrecognized token: " + this.buffer[++this.position]);
         }
     }
 
@@ -576,7 +652,7 @@ public final class Tokenizer {
         For example, "truef" or "tru" or "true  "(trailing whitespaces)
      */
     private void tokenizeTrue() {
-        if (this.buffer.length != 4) {
+        if (this.position + 3 > this.buffer.length) {
             throw new UnrecognizedTokenException("Unrecognized token: " + String.valueOf(this.buffer));
         }
 
@@ -593,7 +669,7 @@ public final class Tokenizer {
         For example, "nullt" or "nul" or "null  "(trailing whitespaces)
      */
     private void tokenizeNull() {
-        if (this.buffer.length != 4) {
+        if (this.position + 3 > this.buffer.length) {
             throw new UnrecognizedTokenException("Unrecognized token: " + String.valueOf(this.buffer));
         }
 
@@ -612,5 +688,25 @@ public final class Tokenizer {
             this.position++;
         }
         return count;
+    }
+
+    private void skipWhiteSpace() {
+        boolean isWhiteSpace = true;
+
+        while (isWhiteSpace) {
+            switch (this.buffer[this.position]) {
+                // We don't use isWhiteSpace() because Java and JSON RFC do not consider the same characters as whitespace
+                case ' ', '\n', '\r', '\t' -> this.position++;
+                default -> isWhiteSpace = false;
+            }
+        }
+    }
+
+    public char[] getBuffer() {
+        return this.buffer;
+    }
+
+    public char getCurrentElement() {
+        return this.buffer[this.position];
     }
 }
