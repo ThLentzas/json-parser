@@ -51,7 +51,7 @@ class TokenizerTest {
     @MethodSource("provideNumberTestCases")
     void shouldTokenizeNumber(String jsonText, int startIndex, int endIndex) {
         Tokenizer tokenizer = new Tokenizer(jsonText.toCharArray());
-        TokenizerToken token = tokenizer.consume();
+        TokenizerToken token = tokenizer.nextToken();
 
         TokenizerTokenAssert.assertThat(token)
                 .hasStartIndex(startIndex)
@@ -64,7 +64,7 @@ class TokenizerTest {
         String jsonText = "-";
         Tokenizer tokenizer = new Tokenizer(jsonText.toCharArray());
 
-        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::consume)
+        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::nextToken)
                 .withMessage("Position: 0. A valid numeric value requires a digit (0-9) after the minus sign");
     }
 
@@ -74,7 +74,7 @@ class TokenizerTest {
         String jsonText = "-a";
         Tokenizer tokenizer = new Tokenizer(jsonText.toCharArray());
 
-        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::consume)
+        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::nextToken)
                 .withMessage("Position: 0. Unexpected character: 'a'. Expected a digit (0-9) after the minus sign");
     }
 
@@ -82,7 +82,7 @@ class TokenizerTest {
     void shouldThrowUnexpectedCharacterExceptionForNumberWithLeadingPositiveSign() {
         Tokenizer tokenizer = new Tokenizer("+123".toCharArray());
 
-        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::consume)
+        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::nextToken)
                 .withMessage("Position: 0. JSON specification prohibits numbers from being prefixed with a plus sign");
     }
 
@@ -90,7 +90,7 @@ class TokenizerTest {
     void shouldThrowUnexpectedCharacterExceptionForNumberWithLeadingZeros() {
         Tokenizer tokenizer = new Tokenizer("001".toCharArray());
 
-        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::consume)
+        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::nextToken)
                 .withMessage("Position: 0. Leading zeros are not allowed");
     }
 
@@ -98,7 +98,7 @@ class TokenizerTest {
     void shouldThrowUnexpectedCharacterExceptionWhenDecimalPointIsNotFollowedByDigit() {
         Tokenizer tokenizer = new Tokenizer("-12.e5".toCharArray());
 
-        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::consume)
+        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::nextToken)
                 .withMessage("Position: 3. Decimal point must be followed by a digit");
     }
 
@@ -107,7 +107,7 @@ class TokenizerTest {
     void shouldThrowUnexpectedCharacterExceptionWhenExponentialNotationIsNotFollowedByDigit(String jsonText) {
         Tokenizer tokenizer = new Tokenizer(jsonText.toCharArray());
 
-        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::consume)
+        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::nextToken)
                 .withMessage("Position: 4. Exponential notation must be followed by a digit");
     }
 
@@ -118,14 +118,14 @@ class TokenizerTest {
     void shouldThrowUnexpectedCharacterExceptionForNumberFollowedByInvalidCharacter(String jsonText) {
         Tokenizer tokenizer = new Tokenizer(jsonText.toCharArray());
 
-        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::consume)
+        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::nextToken)
                 .withMessage("Position: 1. Unexpected character '" + jsonText.charAt(1) + "'");
     }
 
     @Test
     void shouldTokenizeJsonTrue() {
         Tokenizer tokenizer = new Tokenizer("true".toCharArray());
-        TokenizerToken token = tokenizer.consume();
+        TokenizerToken token = tokenizer.nextToken();
 
         TokenizerTokenAssert.assertThat(token)
                 .hasStartIndex(0)
@@ -136,7 +136,7 @@ class TokenizerTest {
     @Test
     void shouldTokenizeJsonFalse() {
         Tokenizer tokenizer = new Tokenizer("false".toCharArray());
-        TokenizerToken token = tokenizer.consume();
+        TokenizerToken token = tokenizer.nextToken();
 
         TokenizerTokenAssert.assertThat(token)
                 .hasStartIndex(0)
@@ -147,7 +147,7 @@ class TokenizerTest {
     @Test
     void shouldTokenizeJsonNull() {
         Tokenizer tokenizer = new Tokenizer("null".toCharArray());
-        TokenizerToken token = tokenizer.consume();
+        TokenizerToken token = tokenizer.nextToken();
 
         TokenizerTokenAssert.assertThat(token)
                 .hasStartIndex(0)
@@ -159,7 +159,7 @@ class TokenizerTest {
     @ValueSource(strings = {"truef", "trfe", "tre", "falset", "falst", "fals", "nullf", "nulf", "nul"})
     void shouldThrowUnrecognizedTokenExceptionWhenJsonTextIsInvalidForJsonBooleanAndNull(String jsonText) {
         Tokenizer tokenizer = new Tokenizer(jsonText.toCharArray());
-        assertThatExceptionOfType(UnrecognizedTokenException.class).isThrownBy(tokenizer::consume)
+        assertThatExceptionOfType(UnrecognizedTokenException.class).isThrownBy(tokenizer::nextToken)
                 .withMessage("Unrecognized token: '" + jsonText + "'. Expected a valid JSON value");
     }
 
@@ -167,7 +167,7 @@ class TokenizerTest {
     @Test
     void shouldTokenizeJsonString() {
         Tokenizer tokenizer = new Tokenizer("\"abc\"".toCharArray());
-        TokenizerToken token = tokenizer.consume();
+        TokenizerToken token = tokenizer.nextToken();
 
         TokenizerTokenAssert.assertThat(token)
                 .hasStartIndex(0)
@@ -178,7 +178,7 @@ class TokenizerTest {
     @Test
     void shouldTokenizeJsonStringWithSurrogatePair() {
         Tokenizer tokenizer = new Tokenizer("\"A\\uD83D\\uDE00Bé\"".toCharArray());
-        TokenizerToken token = tokenizer.consume();
+        TokenizerToken token = tokenizer.nextToken();
 
         TokenizerTokenAssert.assertThat(token)
                 .hasStartIndex(0)
@@ -191,7 +191,7 @@ class TokenizerTest {
     @Test
     void shouldTokenizeJsonStringWith2ConsecutiveHighSurrogates() {
         Tokenizer tokenizer = new Tokenizer("\"A\\uD83D\\uD83DBé\"".toCharArray());
-        TokenizerToken token = tokenizer.consume();
+        TokenizerToken token = tokenizer.nextToken();
 
         TokenizerTokenAssert.assertThat(token)
                 .hasStartIndex(0)
@@ -202,7 +202,7 @@ class TokenizerTest {
     @Test
     void shouldTokenizeJsonStringWith2ConsecutiveUnicodeSequencesHighBMP() {
         Tokenizer tokenizer = new Tokenizer("\"A\\uD83D\\u00E9Bé\"".toCharArray());
-        TokenizerToken token = tokenizer.consume();
+        TokenizerToken token = tokenizer.nextToken();
 
         TokenizerTokenAssert.assertThat(token)
                 .hasStartIndex(0)
@@ -213,7 +213,7 @@ class TokenizerTest {
     @Test
     void shouldTokenizeJsonStringWithHighSurrogateIntoNonEscapedCharacter() {
         Tokenizer tokenizer = new Tokenizer("\"A\\uD83DBé\"".toCharArray());
-        TokenizerToken token = tokenizer.consume();
+        TokenizerToken token = tokenizer.nextToken();
 
         TokenizerTokenAssert.assertThat(token)
                 .hasStartIndex(0)
@@ -225,7 +225,7 @@ class TokenizerTest {
     @Test
     void shouldTokenizeJsonStringWith2ConsecutiveLowSurrogates() {
         Tokenizer tokenizer = new Tokenizer("\"A\\uDE00\\uDE00B\\u00E9\"".toCharArray());
-        TokenizerToken token = tokenizer.consume();
+        TokenizerToken token = tokenizer.nextToken();
 
         TokenizerTokenAssert.assertThat(token)
                 .hasStartIndex(0)
@@ -247,7 +247,7 @@ class TokenizerTest {
     @Test
     void shouldTokenizeJsonStringWithEvenNumberOfBackslashes() {
         Tokenizer tokenizer = new Tokenizer("\"\\\\q\"".toCharArray());
-        TokenizerToken token = tokenizer.consume();
+        TokenizerToken token = tokenizer.nextToken();
 
         TokenizerTokenAssert.assertThat(token)
                 .hasStartIndex(0)
@@ -268,7 +268,7 @@ class TokenizerTest {
     @Test
     void shouldTokenizeJsonStringWithOddNumberOfBackslashes() {
         Tokenizer tokenizer = new Tokenizer("\"\\\\\\n\"".toCharArray());
-        TokenizerToken token = tokenizer.consume();
+        TokenizerToken token = tokenizer.nextToken();
 
         TokenizerTokenAssert.assertThat(token)
                 .hasStartIndex(0)
@@ -285,7 +285,7 @@ class TokenizerTest {
     @Test
     void shouldTokenizeJsonStringWithCodePointInBasicMultilingualPlane() {
         Tokenizer tokenizer = new Tokenizer("\"\\u00E9\"".toCharArray());
-        TokenizerToken token = tokenizer.consume();
+        TokenizerToken token = tokenizer.nextToken();
 
         TokenizerTokenAssert.assertThat(token)
                 .hasStartIndex(0)
@@ -303,7 +303,7 @@ class TokenizerTest {
     void shouldThrowUnexpectedCharacterExceptionForInputEndingWithEscapedQuote() {
         Tokenizer tokenizer = new Tokenizer("\"\\\"".toCharArray());
 
-        assertThatExceptionOfType(UnterminatedValueException.class).isThrownBy(tokenizer::consume)
+        assertThatExceptionOfType(UnterminatedValueException.class).isThrownBy(tokenizer::nextToken)
                 .withMessage("Position: 2. Unterminated value for JSON String");
     }
 
@@ -311,7 +311,7 @@ class TokenizerTest {
     void shouldThrowUnterminatedValueExceptionForUnterminatedString() {
         Tokenizer tokenizer = new Tokenizer("\"abc".toCharArray());
 
-        assertThatExceptionOfType(UnterminatedValueException.class).isThrownBy(tokenizer::consume)
+        assertThatExceptionOfType(UnterminatedValueException.class).isThrownBy(tokenizer::nextToken)
                 .withMessage("Position: 4. Unterminated value for JSON String");
     }
 
@@ -319,7 +319,7 @@ class TokenizerTest {
     void shouldThrowUnexpectedCharacterExceptionWhenEscapeCharacterIsNotValid() {
         Tokenizer tokenizer = new Tokenizer("\"\\q".toCharArray());
 
-        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::consume)
+        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::nextToken)
                 .withMessage("Position: 2. Unexpected escape character: q");
     }
 
@@ -327,7 +327,7 @@ class TokenizerTest {
     void shouldThrowUnexpectedCharacterExceptionForIncompleteCharacterEscapeSequence() {
         Tokenizer tokenizer = new Tokenizer("\"\\".toCharArray());
 
-        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::consume)
+        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::nextToken)
                 .withMessage("Position: 1. Incomplete character escape sequence");
     }
 
@@ -335,7 +335,7 @@ class TokenizerTest {
     void shouldThrowUnexpectedCharacterExceptionForIncompleteUnicodeCharacterSequence() {
         Tokenizer tokenizer = new Tokenizer("\"\\u00E".toCharArray());
 
-        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::consume)
+        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::nextToken)
                 .withMessage("Position: 5. Unexpected end of input for unicode escape sequence");
     }
 
@@ -343,7 +343,7 @@ class TokenizerTest {
     void shouldThrowUnexpectedCharacterExceptionForInvalidCharactersInUnicodeSequence() {
         Tokenizer tokenizer = new Tokenizer("\"\\u00E!\"".toCharArray());
 
-        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::consume)
+        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::nextToken)
                 .withMessage("Position: 6. Unexpected character: '!'. A hex-digit was expected in the character escape sequence");
     }
 
@@ -352,8 +352,8 @@ class TokenizerTest {
     void shouldThrowUnrecognizedTokenExceptionForInvalidCharacters() {
         Tokenizer tokenizer = new Tokenizer("@".toCharArray());
 
-        assertThatExceptionOfType(UnrecognizedTokenException.class).isThrownBy(tokenizer::consume)
-                .withMessage("Position: 0. Unrecognized token: '@'. Expected a valid JSON value");
+        assertThatExceptionOfType(UnrecognizedTokenException.class).isThrownBy(tokenizer::nextToken)
+                .withMessage("Position: 0. Unrecognized token: '@'. Expected: a valid JSON value");
     }
 
     static Stream<Arguments> provideNumberTestCases() {

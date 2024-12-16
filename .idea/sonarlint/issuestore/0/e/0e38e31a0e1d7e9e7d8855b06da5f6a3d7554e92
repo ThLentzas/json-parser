@@ -1,17 +1,17 @@
 
-Ÿ
-java:S1192¾"VDefine a constant instead of duplicating this literal "Unrecognized token: '" 8 times.(Ø¡œĞúÿÿÿÿ8Úâªæ»2J$611bc885-860b-4140-af2b-752278ea4122
-¨
-java:S1192À"_Define a constant instead of duplicating this literal "'. Expected a valid JSON value" 8 times.(²ÿÀÁùÿÿÿÿ8Úâªæ»2J$b3170f3f-3a28-4c78-95ec-e666188eed1c
-
-java:S1192¡"LDefine a constant instead of duplicating this literal "Position: " 17 times.(ù„Åê8Ûâªæ»2J$7a0bfffb-c287-422f-aa15-9cf64943e436
-”
-java:S1301À"KReplace this "switch" statement by "if" statements to increase readability.(Ëó‹•úÿÿÿÿ8Ûâªæ»2J$b883df34-67e6-40fd-bdb1-baef50f22bd5
-–
-java:S3776‡"RRefactor this method to reduce its Cognitive Complexity from 23 to the 15 allowed.(¾¨¡8Ëãªæ»2J$879320ee-04b0-4dde-bea4-94df977103f5
-{
-java:S1135ı"2Complete the task associated to this TODO comment.(ÔäºÉúÿÿÿÿ8Ëãªæ»2J$c25e8dee-eac5-4471-ae46-6ed9657d1f20
-
-java:S1764é"KCorrect one of the identical sub-expressions on both sides of operator "||"(É‚ò8Óãªæ»2J$b7f8d6c3-05b2-49fe-b4dc-1e2f1d1c7701
-
-java:S1144±"6Remove this unused private "handleLeadingZero" method.(‹×À‘üÿÿÿÿ8Õãªæ»2J$38faae75-dae3-4154-9617-52cf7f49d13b
+y
+java:S1192ô"VDefine a constant instead of duplicating this literal "Unrecognized token: '" 8 times.(Ø¡œĞúÿÿÿÿ8å…“„½2
+‚
+java:S1192ö"_Define a constant instead of duplicating this literal "'. Expected a valid JSON value" 8 times.(²ÿÀÁùÿÿÿÿ8å…“„½2
+i
+java:S1192T"LDefine a constant instead of duplicating this literal "Position: " 17 times.(ù„Åê8å…“„½2
+n
+java:S1301ò"KReplace this "switch" statement by "if" statements to increase readability.(Ëó‹•úÿÿÿÿ8å…“„½2
+p
+java:S3776¹"RRefactor this method to reduce its Cognitive Complexity from 23 to the 15 allowed.(¾¨¡8¯†“„½2
+U
+java:S1135¯"2Complete the task associated to this TODO comment.(ÔäºÉúÿÿÿÿ8°†“„½2
+h
+java:S1764Ÿ"KCorrect one of the identical sub-expressions on both sides of operator "||"(É‚ò8·†“„½2
+Y
+java:S1144ç"6Remove this unused private "handleLeadingZero" method.(‹×À‘üÿÿÿÿ8¹†“„½2

@@ -34,8 +34,6 @@ public final class Tokenizer {
     */
     private int initialPosition;
     private List<TokenizerToken> tokens;
-    private int tokenIndex;
-    private boolean peeked;
     // https://www.baeldung.com/java-deque-vs-stack
     private Deque<Character> stack;
 
@@ -45,92 +43,17 @@ public final class Tokenizer {
         stack = new ArrayDeque<>();
     }
 
-    public TokenizerToken consume() {
-        if (this.position == this.buffer.length) {
+    public TokenizerToken nextToken() {
+        if(this.position == this.buffer.length) {
             return null;
         }
 
-        // Read peek() below
-        if (this.peeked) {
-            TokenizerToken tmp = this.tokens.get(this.tokenIndex - 1);
-            this.position = tmp.getEndIndex() + 1;
-            peeked = false;
-            return tmp;
-        }
-
+        int count = this.tokens.size();
         tokenize();
-        return this.tokens.get(this.tokenIndex - 1);
-    }
-
-    /*
-     *  What does peek do is explained in the parseArray() and why do we need it. Below i will explain how we do it.
-     *
-     *  In order to 'peek' on the next element without advancing the index, this.position, we actually do advance the index
-     *  in order to find the next token, and then we reset it by keep track of its initial position. peek() will call
-     *  tokenize() and tokenize() will add the token in the list always at the end. Next when consume is called it will
-     *  always return the last element of the list which is the token we just peeked. Read below why we need to adjust
-     *  the position
-     */
-    public TokenizerToken peek() {
-        if (this.position == this.buffer.length) {
+        if(count == this.tokens.size()) {
             return null;
         }
-
-        /*
-            Why do we need to reset the position after calling tokenize() in peek()?
-
-            The way peek() and consume() work together is that if peek() is called before consume() it adds the next
-            token in the tokens list, consume() then checks if peeked is true, and if so it sets it to false and returns
-            the last token in the list which is the one that was tokenized when peek() was called. If for the last
-            character peek() was called before consume(), this.position will be outside the bounds of the array because
-            we finished tokenizing the buffer but when consume() gets called it will check the position with the buffer's
-            length and because there will be equal it will not actually consume the token. To solve that issue, we reset
-            the position to the index before calling tokenize(). This way, when we check the last token, position will be
-            reset to its previous index, note it is not just position--, a token may advance this.position more than once
-            When peeked is true, consume will return the token, will always be the last token in the list, the one
-            we just peeked, and also advance the position to end index of the previous + 1, essentially advancing the
-            index to the start of the next token.
-
-            Let's consider this example: jsonText = "{\"key\": \"value\"}";
-                After parsing the value we need to peek, why it is explained in parseObject(). We call peek and now
-                position is at the index that the next token would start, but in this case we are done traversing the
-                buffer, so it is out of bounds. Next consume() gets called it checks the position against the length
-                of the buffer and returns because there are no more tokens to consume which is wrong we haven't consumed
-                the last one.
-                Resetting the position fixes the issue. When we peek for the last element, we reset the index to the start
-                of the token we just peeked. Next consume() will be called but now the position < length, and we can
-                consume the last token while at the same time adjusting the index. When the token we just peeked is consumed
-                we advance position to the index after the end index of the previous token, effectively moving it to the
-                start of the next token, in this case, it is the end of the array. This way we correctly peek and consume
-                all the tokens while adjust the index accordingly.
-         */
-        this.initialPosition = this.position;
-        int tokenCount = this.tokens.size();
-        tokenize();
-
-        /*
-            When peek() is called by parser's assertNoTrailingCharacters() we need to consider the case 3 mentioned in
-            that method.
-            "{}\t\b\r\n   " Any whitespace characters after structural characters are considered insignificant.
-
-            Without if:
-                1. After parsing {}, the tokenizer's position is right after }.
-                2. The input still contains whitespace. The tokenizer calls tokenize(), which skips the whitespace and
-                reaches the end of the input without producing any new tokens.
-                3. peek() then tries to revert the position and mark peeked = true, but since no new token was produced,
-                 it ends up returning the last token '}' incorrectly. Control returns to assertNoTrailingCharacters()
-                 and despite not having a new token peek() returns '}'. For assertNoTrailingCharacters() means that
-                 a token was found and as a trailing character, and it considers it invalid.
-            By checking the count before and after in this case we make sure that we handle this case gracefully
-         */
-        if (tokenCount == this.tokens.size()) {
-            return null;
-        }
-
-        this.position = this.initialPosition;
-        peeked = true;
-
-        return this.tokens.get(this.tokenIndex - 1);
+        return this.tokens.get(this.tokens.size() - 1);
     }
 
     /*
@@ -153,7 +76,7 @@ public final class Tokenizer {
         switch (this.buffer[this.position]) {
             case '{' -> {
                 this.stack.push(this.buffer[this.position]);
-                this.tokens.add(new TokenizerToken(this.position, this.position++, TokenizerTokenType.LEFT_CURLY_BRACKET));
+                this.tokens.add(new TokenizerToken(this.position, this.position, TokenizerTokenType.LEFT_CURLY_BRACKET));
             }
             // upper bounds for numbers
             case '}' -> {
@@ -161,44 +84,43 @@ public final class Tokenizer {
                     throw new UnexpectedCharacterException("Position: " + this.position + ". Unexpected character: '}'");
                 }
                 this.stack.pop();
-                this.tokens.add(new TokenizerToken(this.position, this.position++, TokenizerTokenType.RIGHT_CURLY_BRACKET));
+                this.tokens.add(new TokenizerToken(this.position, this.position, TokenizerTokenType.RIGHT_CURLY_BRACKET));
             }
             case '[' -> {
                 this.stack.push(this.buffer[this.position]);
-                this.tokens.add(new TokenizerToken(this.position, this.position++, TokenizerTokenType.LEFT_SQUARE_BRACKET));
+                this.tokens.add(new TokenizerToken(this.position, this.position, TokenizerTokenType.LEFT_SQUARE_BRACKET));
             }
             case ']' -> {
                 if (stack.isEmpty()) {
                     throw new UnexpectedCharacterException("Position: " + this.position + ". Unexpected character: ']'");
                 }
                 this.stack.pop();
-                this.tokens.add(new TokenizerToken(this.position, this.position++, TokenizerTokenType.RIGHT_SQUARE_BRACKET));
+                this.tokens.add(new TokenizerToken(this.position, this.position, TokenizerTokenType.RIGHT_SQUARE_BRACKET));
             }
-            case ':' -> this.tokens.add(new TokenizerToken(this.position, this.position++, TokenizerTokenType.COLON));
-            case ',' -> this.tokens.add(new TokenizerToken(this.position, this.position++, TokenizerTokenType.COMMA));
+            case ':' -> this.tokens.add(new TokenizerToken(this.position, this.position, TokenizerTokenType.COLON));
+            case ',' -> this.tokens.add(new TokenizerToken(this.position, this.position, TokenizerTokenType.COMMA));
             // signs, decimal point and exponential notation
             case '-', '+', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' -> {
                 tokenizeNumber();
                 // position - 1, because position is at the 1st character after the end of number, out of the array if we had just number
                 // which means position is already advanced we don't need to do, this.position++
-                this.tokens.add(new TokenizerToken(initialPosition, this.position - 1, TokenizerTokenType.NUMBER));
+                this.tokens.add(new TokenizerToken(initialPosition, this.position, TokenizerTokenType.NUMBER));
             }
             case '"' -> {
                 tokenizeString();
-                this.tokens.add(new TokenizerToken(initialPosition, this.position++, TokenizerTokenType.STRING));
+                this.tokens.add(new TokenizerToken(initialPosition, this.position, TokenizerTokenType.STRING));
             }
             case 'f', 't' -> {
                 tokenizeBoolean();
-                this.tokens.add(new TokenizerToken(initialPosition, this.position++, TokenizerTokenType.BOOLEAN));
+                this.tokens.add(new TokenizerToken(initialPosition, this.position, TokenizerTokenType.BOOLEAN));
             }
             case 'n' -> {
                 tokenizeNull();
-                this.tokens.add(new TokenizerToken(initialPosition, this.position++, TokenizerTokenType.NULL));
+                this.tokens.add(new TokenizerToken(initialPosition, this.position, TokenizerTokenType.NULL));
             }
             default ->
                     throw new UnrecognizedTokenException("Position: " + this.position + ". Unrecognized token: '" + this.buffer[this.position] + "'. Expected: a valid JSON value");
         }
-        this.tokenIndex++;
     }
 
     /*
@@ -327,6 +249,10 @@ public final class Tokenizer {
                         throw new UnexpectedCharacterException("Position: " + this.position + ". Unexpected character '" + this.buffer[this.position] + "'");
             }
         }
+        // At this point we either encountered an unexpected character or we reached the end of the array. In either case,
+        // the end index of the number is the current - 1. The parser will move the index to the next token, either the
+        // character or the end of the array
+        this.position--;
     }
 
     /**
@@ -849,5 +775,9 @@ public final class Tokenizer {
 
     public int getInitialPosition() {
         return this.initialPosition;
+    }
+
+    public void advance() {
+        this.position++;
     }
 }

@@ -72,7 +72,7 @@ public final class Parser {
     }
 
     public void parse() {
-        TokenizerToken token = advanceToken();
+        TokenizerToken token = peek();
         parseValue(token);
     }
 
@@ -96,12 +96,13 @@ public final class Parser {
     private void parserArray(TokenizerToken token) {
         addToken(token.getStartIndex(), token.getEndIndex(), ParserTokenType.ARRAY_START);
         this.stack.push('[');
+        this.tokenizer.advance();
         TokenizerToken nextToken;
         /*
             We need peek() for the same reason as any other case, to ensure the next token is valid. Let's consider this case
             ['']. When the tokenizer tries to parse ' which is an unrecognized token it throws.
          */
-        nextToken = advanceToken();
+        nextToken = peek();
         if (nextToken == null) {
             throw new MalformedStructureException(buildStructuralErrorMessage("Expected: ']' for Array"));
         }
@@ -112,12 +113,13 @@ public final class Parser {
         }
 
         parseValue(nextToken);
-        nextToken = advanceToken(buildLexicalErrorMessage("Expected: comma to separate Array values"));
+        nextToken = peek();
         while (nextToken != null && nextToken.getType().equals(TokenizerTokenType.COMMA)) {
             addToken(nextToken.getStartIndex(), nextToken.getEndIndex(), ParserTokenType.VALUE_SEPARATOR);
-            nextToken = advanceToken();
+            this.tokenizer.advance();
+            nextToken = peek();
             parseValue(nextToken);
-            nextToken = advanceToken(buildLexicalErrorMessage("Expected: comma to separate Array values"));
+            nextToken = peek();
         }
 
         if (nextToken == null) {
@@ -140,27 +142,31 @@ public final class Parser {
     private void parseObject(TokenizerToken token) {
         addToken(token.getStartIndex(), token.getEndIndex(), ParserTokenType.OBJECT_START);
         this.stack.push('{');
+        this.tokenizer.advance();
         TokenizerToken nextToken;
 
-        nextToken = advanceToken("Expected: double-quoted value for object name");
+        nextToken = peek();
         if (nextToken == null) {
             throw new MalformedStructureException(buildStructuralErrorMessage("Expected: '}' for Object"));
         }
 
         if (nextToken.getType().equals(TokenizerTokenType.RIGHT_CURLY_BRACKET)) {
             assertNoTrailingCharacters(nextToken, ParserTokenType.OBJECT_END);
+            this.tokenizer.advance();
             return;
         }
 
         Set<String> names = new HashSet<>();
         while (true) {
             assertStringKey(nextToken, names);
-            nextToken = advanceToken("' Expected: ':' to separate name-value");
+            this.tokenizer.advance();
+            nextToken = peek();
             assertColon(nextToken);
-            nextToken = advanceToken();
+            this.tokenizer.advance();
+            nextToken = peek();
             parseValue(nextToken);
 
-            nextToken = advanceToken("' Expected: ',' to separate object keys or '}' for JSON object");
+            nextToken = peek();
             if (nextToken == null) {
                 throw new MalformedStructureException(buildStructuralErrorMessage("Expected: '}' for Object"));
             }
@@ -172,9 +178,11 @@ public final class Parser {
 
             if (nextToken.getType().equals(TokenizerTokenType.COMMA)) {
                 addToken(nextToken.getStartIndex(), nextToken.getEndIndex(), ParserTokenType.VALUE_SEPARATOR);
-                nextToken = advanceToken("'. Expected: double-quoted value for object name");
+                this.tokenizer.advance();
+                nextToken = peek();
             } else {
                 assertNoTrailingCharacters(nextToken, ParserTokenType.OBJECT_END);
+                this.tokenizer.advance();
                 break;
             }
         }
@@ -209,16 +217,6 @@ public final class Parser {
                     + ". Expected: ':' to separate name-value");
         }
         addToken(token.getStartIndex(), token.getEndIndex(), ParserTokenType.NAME_SEPARATOR);
-    }
-
-    private TokenizerToken advanceToken() {
-        peek();
-        return this.tokenizer.consume();
-    }
-
-    private TokenizerToken advanceToken(String exceptionMessage) {
-        peek(te -> new MalformedStructureException(exceptionMessage));
-        return this.tokenizer.consume();
     }
 
     /*
@@ -256,6 +254,7 @@ public final class Parser {
             default ->
                     throw new MalformedStructureException("Position: " + token.getStartIndex() + ". Unexpected character: '" + String.valueOf(this.tokenizer.getBuffer(), token.getStartIndex(), token.getEndIndex() - token.getStartIndex() + 1) + "' Expected JSON value");
         }
+        this.tokenizer.advance();
     }
 
     private void addToken(int startIndex, int endIndex, ParserTokenType type) {
@@ -337,6 +336,7 @@ public final class Parser {
         addToken(token.getStartIndex(), token.getEndIndex(), type);
         this.stack.pop();
 
+        this.tokenizer.advance();
         if (this.stack.isEmpty()) {
             try {
                 token = peek();
@@ -384,12 +384,12 @@ public final class Parser {
     }
 
     private TokenizerToken peek() {
-        return this.tokenizer.peek();
+        return this.tokenizer.nextToken();
     }
 
     private TokenizerToken peek(Function<TokenizerException, MalformedStructureException> exceptionHandler) {
         try {
-            return this.tokenizer.peek();
+            return this.tokenizer.nextToken();
         } catch (TokenizerException te) {
             throw exceptionHandler.apply(te);
         }
