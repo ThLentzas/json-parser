@@ -1,9 +1,11 @@
 
-Ÿ
-java:S1192*"WDefine a constant instead of duplicating this literal "Unexpected character: " 4 times.(„Š†Äûÿÿÿÿ8òÜêí¹2J$204706c7-e430-425a-8e0e-3d1c1f53a434
-z
-java:S1135"2Complete the task associated to this TODO comment.(Õ´Ğ¥üÿÿÿÿ8ˆİêí¹2J$2f7d3f47-402a-459d-9194-ae70ba27f1e1
-›
-java:S3776†"RRefactor this method to reduce its Cognitive Complexity from 23 to the 15 allowed.(ÉŒ•ûÿÿÿÿ8Œİêí¹2J$593049c0-e6b4-43eb-92e7-96f8d2cd95c6
+ 
+java:S1192j"XDefine a constant instead of duplicating this literal "Expected: ']' for Array" 3 times.(ÎÑİÌøÿÿÿÿ8ıâÍÿ»2J$25b7143a-745c-4340-9502-4fd23574ba57
+
+java:S1192"ZDefine a constant instead of duplicating this literal ". Unexpected character: '" 5 times.(û·¨8ıâÍÿ»2J$9358ed27-fbd1-4dbb-8e73-c111f7572f68
+
+java:S1192"KDefine a constant instead of duplicating this literal "Position: " 6 times.(û·¨8şâÍÿ»2J$7a06f556-41d1-4885-a3d7-c8d575111ccc
+¬
+java:S1192s"iDefine a constant instead of duplicating this literal "Expected: comma to separate Array values" 3 times.(ßæİí8şâÍÿ»2J$b6977fee-2b59-493e-8055-1ba8bc5a5f4a
 n
-java:S1068",Remove this unused "position" private field.(•È?8 İêí¹2J$b52d92fa-c173-457a-a9a7-6c194cd2427f
+java:S1068@",Remove this unused "position" private field.(•È?8¶ãÍÿ»2J$95db6f78-b970-4b92-b238-b8a664a77097

@@ -1,21 +1,17 @@
 
-™
-java:S1192Ÿ"UDefine a constant instead of duplicating this literal "Unrecognized token: " 7 times.(–çşâ8•ó‰ö¹2J$e39cbd37-45cb-4601-a7a2-02bf12db1c05
+Ÿ
+java:S1192¾"VDefine a constant instead of duplicating this literal "Unrecognized token: '" 8 times.(Ø¡œĞúÿÿÿÿ8Úâªæ»2J$611bc885-860b-4140-af2b-752278ea4122
+¨
+java:S1192À"_Define a constant instead of duplicating this literal "'. Expected a valid JSON value" 8 times.(²ÿÀÁùÿÿÿÿ8Úâªæ»2J$b3170f3f-3a28-4c78-95ec-e666188eed1c
+
+java:S1192¡"LDefine a constant instead of duplicating this literal "Position: " 17 times.(ù„Åê8Ûâªæ»2J$7a0bfffb-c287-422f-aa15-9cf64943e436
 ”
-java:S1301›"KReplace this "switch" statement by "if" statements to increase readability.(Ëó‹•úÿÿÿÿ8–ó‰ö¹2J$d7f5633d-9cdd-4da2-a7e6-35910f4cc4ad
-”
-java:S1301¹"KReplace this "switch" statement by "if" statements to increase readability.(Ëó‹•úÿÿÿÿ8–ó‰ö¹2J$d87b2a16-4811-4637-9d1d-49efe07c02ad
-z
-java:S1135"2Complete the task associated to this TODO comment.(¿°‘ûÿÿÿÿ8²ó‰ö¹2J$a0bdbbcc-6932-4899-bf5c-b2b3506bac8b
-u
-java:S1135_"2Complete the task associated to this TODO comment.(¾Û­Ä8´ó‰ö¹2J$0c30acdb-9fed-44c0-a813-ebc7dc2eed01
+java:S1301À"KReplace this "switch" statement by "if" statements to increase readability.(Ëó‹•úÿÿÿÿ8Ûâªæ»2J$b883df34-67e6-40fd-bdb1-baef50f22bd5
 –
-java:S3776ğ"RRefactor this method to reduce its Cognitive Complexity from 21 to the 15 allowed.(¾¨¡8¶ó‰ö¹2J$ddbced8d-3373-4b86-82a5-dcf3cd2eae79
+java:S3776‡"RRefactor this method to reduce its Cognitive Complexity from 23 to the 15 allowed.(¾¨¡8Ëãªæ»2J$879320ee-04b0-4dde-bea4-94df977103f5
 {
-java:S1135æ"2Complete the task associated to this TODO comment.(ÔäºÉúÿÿÿÿ8¶ó‰ö¹2J$c2db7cbc-0f0e-4460-971d-00ff135ebe11
-v
-java:S1135·"2Complete the task associated to this TODO comment.(ç¥Î8·ó‰ö¹2J$1eed0b3f-5126-46f6-8d4b-5ed4fec0f7fb
-v
-java:S1135ø"2Complete the task associated to this TODO comment.(‘Öş—8»ó‰ö¹2J$ecebbde7-9d7b-4d3e-911c-4fae98aabe87
+java:S1135ı"2Complete the task associated to this TODO comment.(ÔäºÉúÿÿÿÿ8Ëãªæ»2J$c25e8dee-eac5-4471-ae46-6ed9657d1f20
 
-java:S1764¦"KCorrect one of the identical sub-expressions on both sides of operator "||"(É‚ò8»ó‰ö¹2J$a4a131a2-afe2-48f5-a754-3fb6580aa87a
+java:S1764é"KCorrect one of the identical sub-expressions on both sides of operator "||"(É‚ò8Óãªæ»2J$b7f8d6c3-05b2-49fe-b4dc-1e2f1d1c7701
+
+java:S1144±"6Remove this unused private "handleLeadingZero" method.(‹×À‘üÿÿÿÿ8Õãªæ»2J$38faae75-dae3-4154-9617-52cf7f49d13b

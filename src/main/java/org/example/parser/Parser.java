@@ -1,6 +1,8 @@
 package org.example.parser;
 
-import org.example.exception.*;
+import org.example.exception.DuplicateObjectNameException;
+import org.example.exception.MalformedStructureException;
+import org.example.exception.TokenizerException;
 import org.example.tokenizer.Tokenizer;
 import org.example.tokenizer.TokenizerToken;
 import org.example.tokenizer.TokenizerTokenType;
@@ -11,14 +13,57 @@ import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
 
-// toDo: explain why we can't have a char[] buffer on Parser. Shortly as tokenizer progress through its buffer it
-//  will replace the content in case of an escape sequence and then the 2 buffers will not be the same anymore
+/*
+    Why do we need peek() before calling consume()? This is true for every case
+
+    Parser needs to verify that the provided text follows the expected structure as defined by the rfc.
+    For example, according to rfc:
+        "An object structure is represented as a pair of curly brackets surrounding zero or more name/value pairs
+        (or members).  A name is a string.  A single colon comes after each name, separating the name from the value.
+        A single comma separates a value from a following name. The names within an object SHOULD be unique."
+
+    We call parser.parse() -> parseValue() -> encounter '{', create a token, push it to the stack. According to the
+    object structure we either expect '}' or a valid string name. By calling peek():
+        We validate that the next token is grammatically allowed in the current parse state. This is explained above
+        the initialPosition on the Tokenizer class, but in short before we validate the structure we need to verify that
+        the next token is grammatically correct(e.g. "some valid string"). The call to consume() will ALWAYS return a
+        grammatically correct token, and then it will verify if it follows the expected structure like {"key" : value}
+        Any exception thrown from the tokenizer then can be caught to reflect the context as explained in initialPosition
+        of the Tokenizer class
+    Another use case is: [2]
+        After adding as token the '[', we need to look ahead to the next value to make sure that is grammatically correct
+        not structural, we call peek(), it returns 2, 2 is neither invalid nor ']' to indicate an empty. For the correct
+        array structure, we SHOULD have a valid JSON value. We call parseValue(), parseValue() calls consume() and it
+        returns the same token peek() did which is the expected behaviour.
+    What happens if we use consume() instead of peek()?
+        consume() ADVANCES the index, which means that after looking at 2 as a valid token we call parseValue() which
+        internally calls consume() we would advance the index again missing one token. consume() from parseValue would
+        return ']' which is not a valid JSON value. It's crucial to reset the index after calling peek().
+
+    IMPORTANT!
+        peek() and consume() will return the same token, but we don't do the tokenization process twice. consume() looks at
+        a temp variable that holds the token that peek() tokenized and returns it. We still do a linear search where we
+        visit each element of the buffer once
+
+    Error handling:
+        For grammatical errors we use tokenizer.getInitialPosition() which returns initialPosition(already explained in
+        Tokenizer).
+        For structural errors, we encountered a valid token but not the expected one ({"key" 123 value} we encountered a
+        valid number instead of ':' we use the startIndex of the token). Read parseValue() for an exception
+
+    Why we don't have a char[] buffer, and we access the elements from the Tokenizer?
+        As tokenizer progresses through its buffer it will replace the content in case of an escape sequence and then
+        the 2 buffers will not be the same anymore. Doing in the parser's constructor this.buffer = this.tokenizer.getBuffer()
+        is simply not enough.
+ */
 public final class Parser {
     private List<ParserToken> tokens;
     private Tokenizer tokenizer;
     private int position;
     private Deque<Character> stack;
+    private boolean isKey;
 
     public Parser(Tokenizer tokenizer) {
         this.tokenizer = tokenizer;
@@ -27,20 +72,8 @@ public final class Parser {
     }
 
     public void parse() {
-        TokenizerToken token = this.tokenizer.consume();
-        if (token == null) {
-            return;
-        }
-        switch (token.getType()) {
-            case NUMBER -> parseNumber(token);
-            case NULL -> parseNull(token);
-            case BOOLEAN -> parseBoolean(token);
-            case STRING -> parseString(token);
-            case LEFT_CURLY_BRACKET -> parseObject(token);
-            case LEFT_SQUARE_BRACKET -> parserArray(token);
-            case RIGHT_CURLY_BRACKET, RIGHT_SQUARE_BRACKET, COLON, COMMA ->
-                    throw new UnexpectedCharacterException("Unexpected character: " + token.getType() + " for root");
-        }
+        TokenizerToken token = advanceToken();
+        parseValue(token);
     }
 
     /*
@@ -51,11 +84,7 @@ public final class Parser {
             If the next token is null, it means we’ve reached the end of the input unexpectedly, resulting in an
             unterminated array error.
             If the next token is ']', it indicates an empty array.
-            If the token is neither null nor ], we assume it should be the start of a value. However, parseValue() will
-            call nextToken() internally to identify that value. Because we’ve already consumed one token to check for
-            emptiness, parseValue() effectively “skips” the current token and looks ahead. If it then encounters a ','
-            (potentially more values) or ']' instead of a valid value token ({, [, number, string, boolean, or null),
-            it will throw an exception since those characters are not valid as standalone values in JSON.
+            If the token is neither null nor ], we assume it should be the start of a value.
 
         What does peek() do? We look ahead at the next token without actually advancing the tokenizer's reading position.
         By peeking, we gain information about what the next token will be if we were to consume it. This means that
@@ -67,164 +96,152 @@ public final class Parser {
     private void parserArray(TokenizerToken token) {
         addToken(token.getStartIndex(), token.getEndIndex(), ParserTokenType.ARRAY_START);
         this.stack.push('[');
-        TokenizerToken nextToken = this.tokenizer.peek();
+        TokenizerToken nextToken;
+        /*
+            We need peek() for the same reason as any other case, to ensure the next token is valid. Let's consider this case
+            ['']. When the tokenizer tries to parse ' which is an unrecognized token it throws.
+         */
+        nextToken = advanceToken();
         if (nextToken == null) {
-            throw new MalformedStructureException("Expected: ']' for JSON Array");
+            throw new MalformedStructureException(buildStructuralErrorMessage("Expected: ']' for Array"));
         }
 
-        // Can't be null, because next token will ALWAYS have the same value that was assigned with peek() when consumed
-        // is called but the IDE has no way of knowing that, so it complains. If next token was null the previous would
-        // have handled it, at this point it can't be null
-        // Empty array.
         if (nextToken.getType().equals(TokenizerTokenType.RIGHT_SQUARE_BRACKET)) {
-            nextToken = this.tokenizer.consume();
-            addToken(nextToken.getStartIndex(), nextToken.getEndIndex(), ParserTokenType.ARRAY_END);
-            this.stack.pop();
-
-            try {
-                nextToken = this.tokenizer.peek();
-                // No more nested objects/arrays and no more tones = valid empty array
-                if (stack.isEmpty() && nextToken == null) {
-                    return;
-                }
-
-                /*
-                    We have more characters after an empty array and no nested objects
-                    Let's consider this example: jsonText = "[]]";
-
-                    First we call consume(), stack = {'['}, this.position = 1. Now in parseArray() we can have an early return
-                    if the array is empty and valid. We peek() in the next token, why we do that is explained in parseArray(),
-                    we encounter ']', we remove from the stack, we have a valid pair, and this.position is increased to 2. Control
-                    returns to parseArray() which checks if the token was ']' and if so it consumes it.
-                        We have 3 cases where we can have tokens after a closing square bracket.
-                            1. Nested arrays [ [1, 2], 3, 4 ]
-                            2. {
-                                    "numbers": [1, 2],
-                                    "status": "ok"
-                               } Value within an object
-                            3. Empty array []
-                       We peek() in the next token, we encounter ']' and our stack is empty which means not a nested or a
-                       value in an object. Tokenizer will return a non-null nextToken while our stack is empty, so we throw
-                       a MalformedStructureException. This will be the case for any non-null value while our
-                       stack is empty.
-                 */
-                if (this.stack.isEmpty()) {
-                    throw new MalformedStructureException("Unexpected character after: ']'");
-                }
-            } catch (TokenizerException te) {
-                throw new MalformedStructureException("Unexpected character after: ']'");
-            }
+            assertNoTrailingCharacters(nextToken, ParserTokenType.ARRAY_END);
+            return;
         }
 
-        parseValue();
-        nextToken = this.tokenizer.consume();
+        parseValue(nextToken);
+        nextToken = advanceToken(buildLexicalErrorMessage("Expected: comma to separate Array values"));
         while (nextToken != null && nextToken.getType().equals(TokenizerTokenType.COMMA)) {
             addToken(nextToken.getStartIndex(), nextToken.getEndIndex(), ParserTokenType.VALUE_SEPARATOR);
-            parseValue();
-            nextToken = this.tokenizer.consume();
+            nextToken = advanceToken();
+            parseValue(nextToken);
+            nextToken = advanceToken(buildLexicalErrorMessage("Expected: comma to separate Array values"));
         }
 
-        if (nextToken == null || !nextToken.getType().equals(TokenizerTokenType.RIGHT_SQUARE_BRACKET)) {
-            throw new UnterminatedValueException("Unterminated value. Expected: ']' for JSON array");
+        if (nextToken == null) {
+            throw new MalformedStructureException(buildStructuralErrorMessage("Expected: ']' for Array"));
         }
-        addToken(nextToken.getStartIndex(), nextToken.getEndIndex(), ParserTokenType.ARRAY_END);
-        this.stack.pop();
+
+        // We need a way to separate what was the type of token that was not comma and exited the loop
+        // Case 1: Some value -> we were expecting comma
+        // Case 2: Anything else -> we were expecting ']' to terminate the array
+        if (!nextToken.getType().equals(TokenizerTokenType.RIGHT_SQUARE_BRACKET)) {
+            if (isValue(nextToken.getType())) {
+                throw new MalformedStructureException(buildStructuralErrorMessage(nextToken, "Expected: comma to separate Array values"));
+            } else {
+                throw new MalformedStructureException(buildStructuralErrorMessage(nextToken, "Expected: ']' for Array"));
+            }
+        }
+        assertNoTrailingCharacters(nextToken, ParserTokenType.ARRAY_END);
     }
 
     private void parseObject(TokenizerToken token) {
         addToken(token.getStartIndex(), token.getEndIndex(), ParserTokenType.OBJECT_START);
         this.stack.push('{');
-        // check for empty object
-        TokenizerToken nextToken = this.tokenizer.consume();
+        TokenizerToken nextToken;
+
+        nextToken = advanceToken("Expected: double-quoted value for object name");
         if (nextToken == null) {
-            throw new UnterminatedValueException("Unterminated value. Expected: " + ParserTokenType.OBJECT_END + " for JSON Object");
+            throw new MalformedStructureException(buildStructuralErrorMessage("Expected: '}' for Object"));
+        }
+
+        if (nextToken.getType().equals(TokenizerTokenType.RIGHT_CURLY_BRACKET)) {
+            assertNoTrailingCharacters(nextToken, ParserTokenType.OBJECT_END);
+            return;
         }
 
         Set<String> names = new HashSet<>();
         while (true) {
-            if (nextToken == null || !nextToken.getType().equals(TokenizerTokenType.STRING)) {
-                throw new UnexpectedCharacterException("Unexpected character. Expected: double-quoted value for object name");
+            assertStringKey(nextToken, names);
+            nextToken = advanceToken("' Expected: ':' to separate name-value");
+            assertColon(nextToken);
+            nextToken = advanceToken();
+            parseValue(nextToken);
+
+            nextToken = advanceToken("' Expected: ',' to separate object keys or '}' for JSON object");
+            if (nextToken == null) {
+                throw new MalformedStructureException(buildStructuralErrorMessage("Expected: '}' for Object"));
             }
-            // Consider removing quotation marks, - 2
-            String name = new String(this.tokenizer.getBuffer(), nextToken.getStartIndex(), nextToken.getEndIndex() - nextToken.getStartIndex() + 1);
-            if (names.contains(name)) {
-                throw new DuplicateObjectNameException("Duplicate object name: " + name);
+
+            if (!nextToken.getType().equals(TokenizerTokenType.COMMA)
+                    && !nextToken.getType().equals(TokenizerTokenType.RIGHT_CURLY_BRACKET)) {
+                throw new MalformedStructureException(buildStructuralErrorMessage(nextToken, "Expected: '}' for object"));
             }
-            names.add(name);
-            parseString(nextToken);
 
-           /*
-                Why do we need to call peek()?
-
-                Let's consider this case:  {"key" % "value"}
-                The next token we expect is ':' to separate the key we just parsed from the value, but what happens if we
-                get an invalid token when we call consume()? In the above case, when the tokenizer tries to tokenize
-                '%' it will throw an UnrecognizedCharacterException because none of the valid JSON values starts with %.
-                This exception though does not reflect the current context. It should be something like 'expected ':'
-                to separate name-value'. This is what we handle by catching the tokenizer exception in this context.
-                Another example is {"key" 0001 "value"}. If we follow the logic we just described we would have an error
-                like "Leading zeros are not allowed" which also does not reflect the current context.
-                If the token is valid we consume it, and we check if is the expected one. We have a similar case bellow.
-             */
-            try {
-                this.tokenizer.peek();
-            } catch (TokenizerException te) {
-                // We use this.tokenizer.getCurrentElement() because the token we peeked raised an exception which means
-                // that it was not added as token to the tokenizer, and we don't have access to it directly. We know
-                // though that whatever caused this exception is the current character at tokenizer's buffer.
-                throw new UnexpectedCharacterException("Unexpected character: " + this.tokenizer.getCurrentElement() + " Expected: ':' to separate name-value");
-            }
-            nextToken = this.tokenizer.consume();
-            if (nextToken == null || !nextToken.getType().equals(TokenizerTokenType.COLON)) {
-                throw new UnexpectedCharacterException("Unexpected character: " + this.tokenizer.getCurrentElement() + " Expected: ':' to separate name-value");
-            }
-            addToken(nextToken.getStartIndex(), nextToken.getEndIndex(), ParserTokenType.NAME_SEPARATOR);
-
-            /*
-                Why do we need to call peek()?
-
-                Let's consider this case:  "key" : 1 + 2
-                When we call parseValue() we parse 1 and then call consume() what happens if an exception is thrown?
-                If no exception is thrown the if() will check if the token has the expected value which is either ','
-                to separate object properties or '}'. But what if when we try to tokenize the next token we get an exception?
-
-                "key" : 1 "abc -> this would lead to unterminated value exception when we tried to tokenize() "abc. We
-                need to handle these exceptions with the correct error handling. In those cases, we expect a ',' or '}'
-                which means that if we don't get either we need to handle the exception. It will not help on the error
-                if we say "Unterminated value" in this case. For the case of "key" : 1 + 2, encountering the '+' will
-                throw an UnexpectedCharacterException because JSON spec does not allow numbers to start with '+'
-
-                If peek() does not raise an exception we can consume the token(advance the position pointer of tokenizer)
-                and check if it has the expected value in the following if().
-             */
-            parseValue();
-            try {
-                this.tokenizer.peek();
-            } catch (TokenizerException te) {
-                // We use this.tokenizer.getCurrentElement() because the token we peeked raised an exception which means
-                // that it was not added as token to the tokenizer, and we don't have access to it directly. We know
-                // though that whatever caused this exception is the current character at tokenizer's buffer.
-                throw new UnexpectedCharacterException("Unexpected character: " + this.tokenizer.getCurrentElement() + " Expected: ',' to separate object keys or '}' for JSON object");
-            }
-            nextToken = this.tokenizer.consume();
-            if (nextToken == null
-                    || (!nextToken.getType().equals(TokenizerTokenType.COMMA)
-                    && !nextToken.getType().equals(TokenizerTokenType.RIGHT_CURLY_BRACKET))) {
-                throw new UnexpectedCharacterException((nextToken == null ? "Unterminated value." : "Unexpected character:" + String.valueOf(this.tokenizer.getBuffer(), nextToken.getStartIndex(), nextToken.getEndIndex() - nextToken.getStartIndex() + 1)) + " Expected: " + ParserTokenType.NAME_SEPARATOR + " to separate object keys or " + ParserTokenType.OBJECT_END + " for JSON object");
-            } else if (nextToken.getType().equals(TokenizerTokenType.COMMA)) {
+            if (nextToken.getType().equals(TokenizerTokenType.COMMA)) {
                 addToken(nextToken.getStartIndex(), nextToken.getEndIndex(), ParserTokenType.VALUE_SEPARATOR);
-                nextToken = this.tokenizer.consume();
+                nextToken = advanceToken("'. Expected: double-quoted value for object name");
             } else {
-                addToken(nextToken.getStartIndex(), nextToken.getEndIndex(), ParserTokenType.OBJECT_END);
-                this.stack.pop();
+                assertNoTrailingCharacters(nextToken, ParserTokenType.OBJECT_END);
                 break;
             }
         }
     }
 
-    // remember this has to be a valid json value
-    private void parseValue() {
-        TokenizerToken token = this.tokenizer.consume();
+    private void assertStringKey(TokenizerToken token, Set<String> names) {
+        if (!token.getType().equals(TokenizerTokenType.STRING)) {
+            throw new MalformedStructureException("Unexpected character: '"
+                    + this.tokenizer.getBuffer()[token.getStartIndex()]
+                    + "' at position: " + (token.getStartIndex() + 1)
+                    + ". Expected: double-quoted value for object name");
+        }
+        /*
+            We remove the mandatory quotation marks for the string name.
+            "abcd" We start from the token.getStartIndex() + 1 which is the 1st character after then opening quotation
+            mark and include, token.getEndIndex() - token.getStartIndex() - 1 to skip the closing quotation marks
+         */
+        String name = new String(this.tokenizer.getBuffer(), token.getStartIndex() + 1, token.getEndIndex() - token.getStartIndex() - 1);
+        if (names.contains(name)) {
+            throw new DuplicateObjectNameException("Duplicate object name: " + name);
+        }
+        names.add(name);
+        isKey = true;
+        parseString(token);
+    }
+
+    private void assertColon(TokenizerToken token) {
+        if (token == null || !token.getType().equals(TokenizerTokenType.COLON)) {
+            throw new MalformedStructureException("Unexpected character: '"
+                    + this.tokenizer.getBuffer()[this.tokenizer.getInitialPosition()]
+                    + "' at position: " + (this.tokenizer.getInitialPosition() + 1)
+                    + ". Expected: ':' to separate name-value");
+        }
+        addToken(token.getStartIndex(), token.getEndIndex(), ParserTokenType.NAME_SEPARATOR);
+    }
+
+    private TokenizerToken advanceToken() {
+        peek();
+        return this.tokenizer.consume();
+    }
+
+    private TokenizerToken advanceToken(String exceptionMessage) {
+        peek(te -> new MalformedStructureException(exceptionMessage));
+        return this.tokenizer.consume();
+    }
+
+    /*
+        We need peek() for the same reason as any other case, to ensure the next token is valid. Let's consider this case
+        [6, '']. We parse 6 valid json value, but then tokenizer tries to parse ' which is an unrecognized token and
+        it throws. It is not that ' is not considered a JSON value it is that is invalid token. Valid tokens like '}' are
+        considered invalid JSON values.
+     */
+
+    private void parseValue(TokenizerToken token) {
+         /*
+            For grammatical errors that occur when we tokenize an invalid token to ensure we have the correct structure
+            e.g. {nul : value}. When we tokenize null an exception will be thrown something like unknown token etc.
+            which does not reflect the context. The correct error would have been expected string value for key name
+            etc. It is already explained in the initialPosition of the Tokenizer how this is done and in this class
+            every time peek() is called a MalformedStructureException is thrown with an adjusted message.
+
+            parseValue() is the exception on this rule. When parseValue() tries to tokenize the next token if there
+            is something wrong with the token we throw the message from the Tokenizer.
+            e.g. {"key" : 123a} In this case, there is no structural error. We have an invalid value, we expect
+            an error message like "Unexpected character 'a'", this is why we don't adjust the exception message
+            thrown by the Tokenizer
+        */
         if (token == null) {
             return;
         }
@@ -237,7 +254,7 @@ public final class Parser {
             case LEFT_CURLY_BRACKET -> parseObject(token);
             case LEFT_SQUARE_BRACKET -> parserArray(token);
             default ->
-                    throw new UnexpectedCharacterException("Unexpected character: '" + String.valueOf(this.tokenizer.getBuffer(), token.getStartIndex(), token.getEndIndex() - token.getStartIndex() + 1) + "' Expected JSON value");
+                    throw new MalformedStructureException("Position: " + token.getStartIndex() + ". Unexpected character: '" + String.valueOf(this.tokenizer.getBuffer(), token.getStartIndex(), token.getEndIndex() - token.getStartIndex() + 1) + "' Expected JSON value");
         }
     }
 
@@ -291,8 +308,134 @@ public final class Parser {
         } else if (this.stack.peek() == '[') {
             type = ParserTokenType.ARRAY_VALUE_STRING;
         } else {
-            type = ParserTokenType.OBJECT_PROPERTY_VALUE_STRING;
+            /*
+                We have an edge case to consider for object. When parseString() is called it can be for both a string value
+                but also for key name, and we need a way to distinguish the 2.
+             */
+            type = isKey ? ParserTokenType.OBJECT_PROPERTY_NAME : ParserTokenType.OBJECT_PROPERTY_VALUE_STRING;
+            isKey = false;
         }
         addToken(token.getStartIndex(), token.getEndIndex(), type);
+    }
+
+    /*
+        For trailing characters we have to consider 3 cases:
+
+            1. Trailing characters that would lead to invalid token: []001. When the tokenizer tries to tokenize 001 it
+            would throw an exception because leading zeros are not allowed we catch that TokenizerException and throw
+            accordingly to reflect the context, that we got an unexpected character
+            2. Trailing characters that would lead to valid token: []1. The tokenizer will create a token when peek()
+            is called which means the return value of peek() will be a non-null token. In this case, since stack is empty
+            we don't have any nesting, we have trailing characters and throw an exception
+            3. Insignificant trailing characters(trailing whitespaces): {}\n\t\r When the tokenizer checks if there are
+            characters after '}' and finds whitespace characters they are considered insignificant according to rfc and
+            should be ignored. peek() returns the last token or null for cases like this or when we go out of bounds of
+            the array.
+     */
+
+    private void assertNoTrailingCharacters(TokenizerToken token, ParserTokenType type) {
+        addToken(token.getStartIndex(), token.getEndIndex(), type);
+        this.stack.pop();
+
+        if (this.stack.isEmpty()) {
+            try {
+                token = peek();
+                /*
+                    We have more characters after an empty array and no nested objects
+                    Let's consider this example: jsonText = "{}}";
+
+                    First we call consume(), stack = '{', this.position = 1. We can have an early return
+                    if the object is empty and valid. We peek() in the next token,
+                    we encounter '}', we remove from the stack, we have a valid pair, and this.position is increased to 2. Control
+                    returns to parseObject() which checks if the token was '}' and if so it consumes it.
+                        We have 3 cases where we can have tokens after a closing square bracket.
+                            1. {
+                                 "outerKey": {
+                                   "innerKey": "innerValue"
+                                 }
+                               } Nested Objects
+                            2. [
+                                  { "name": "Alice" },
+                                  { "name": "Bob" }
+                                ] // Array of objects
+                            3.  {
+                                   "outerKey": {
+                                     "innerKey": "innerValue"
+                                   },
+                                   "anotherKey": "anotherValue"
+                                 } Nested object followed by key property of the outer object
+                            4. Empty object {}
+                         Note that 2, 3 are the same because '}' is followed by comma.
+
+                       We peek() in the next token, we encounter '}' and our stack is empty which means neither a nested
+                       object nor a value in an object array. Tokenizer will return a non-null nextToken while our stack
+                       is empty, so we throw a MalformedStructureException. This will be the case for any non-null value
+                       while our stack is empty. To consider those trailing characters as invalid the stack must be
+                       empty because it will mean we have no nested arrays/objects so trailing values after '}' are not
+                       allowed
+                 */
+                if (token != null) {
+                    throw new MalformedStructureException("Position: " + token.getStartIndex() + ". Unexpected character: '" + this.tokenizer.getBuffer()[token.getStartIndex()] + "'");
+                }
+            } catch (TokenizerException te) {
+                throw new MalformedStructureException("Position: " + this.tokenizer.getInitialPosition() + ". Unexpected character: '" + this.tokenizer.getBuffer()[this.tokenizer.getInitialPosition()] + "'");
+            }
+        }
+    }
+
+    private TokenizerToken peek() {
+        return this.tokenizer.peek();
+    }
+
+    private TokenizerToken peek(Function<TokenizerException, MalformedStructureException> exceptionHandler) {
+        try {
+            return this.tokenizer.peek();
+        } catch (TokenizerException te) {
+            throw exceptionHandler.apply(te);
+        }
+    }
+
+    private String buildLexicalErrorMessage(String message) {
+        StringBuilder errorMessage = new StringBuilder();
+        errorMessage.append("Position: ")
+                .append(this.tokenizer.getInitialPosition())
+                .append(". Unexpected character: '")
+                .append(this.tokenizer.getBuffer()[this.tokenizer.getInitialPosition()])
+                .append("'. ")
+                .append(message);
+        return errorMessage.toString();
+    }
+
+    private String buildStructuralErrorMessage(String message) {
+        StringBuilder errorMessage = new StringBuilder();
+        errorMessage.append("Position: ")
+                .append(this.tokenizer.getBuffer().length - 1)
+                .append(". Unterminated value. ")
+                .append(message);
+        return errorMessage.toString();
+    }
+
+    private String buildStructuralErrorMessage(TokenizerToken token, String message) {
+        StringBuilder errorMessage = new StringBuilder();
+        errorMessage.append("Position: ")
+                .append(token.getStartIndex())
+                .append(". Unexpected character: '")
+                .append(this.tokenizer.getBuffer()[token.getStartIndex()])
+                .append("'. ")
+                .append(message);
+        return errorMessage.toString();
+    }
+
+    private boolean isValue(TokenizerTokenType type) {
+        return type == TokenizerTokenType.STRING
+                || type == TokenizerTokenType.NUMBER
+                || type == TokenizerTokenType.BOOLEAN
+                || type == TokenizerTokenType.NULL
+                || type == TokenizerTokenType.LEFT_CURLY_BRACKET
+                || type == TokenizerTokenType.LEFT_SQUARE_BRACKET;
+    }
+
+    public List<ParserToken> getTokens() {
+        return tokens;
     }
 }

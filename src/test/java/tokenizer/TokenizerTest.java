@@ -18,7 +18,8 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 /*
     In every test bellow as i have already explained we can not pass escape sequences as our json text input instead
-    we pass each character individually and the parser will convert the sequence to the corresponding character.
+    we pass each character individually and the parser will convert the sequence to the corresponding character. (comment
+    above main)
     We can not pass "\"\n\"", we pass '\n' as an escape character we need to pass each character individually
     "\"\\n\"" We escape the backslash which converts it to a backslash literal at compile time and then the character n
     The parser will map correctly the escape character/sequence.
@@ -28,6 +29,98 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
     the characters \uD83D and map them accordingly.
  */
 class TokenizerTest {
+    /*
+        We use @MethodSource because if we used @ValueSource we wouldn't be able to assert on the start and end index.
+        @ValueSource(strings = {
+            // Positive integers
+            "1", "12345", "0",
+            // Negative integers
+            "-1", "-12345", "-0",
+            // Simple decimals
+            "1.0", "123.45", "0.1", "0.12345", "-1.0", "-123.45", "-0.1", "-0.12345",
+            // Exponential notation (positive base)
+            "1e2", "1E2", "123e+5", "123E+5", "123e-5", "123E-5",
+            // Exponential notation (negative base)
+            "-1e2", "-1E2", "-123e+5", "-123E+5", "-123e-5", "-123E-5",
+            // Exponential notation with decimals
+            "1.2e3", "123.45E6", "0.1e-2", "0.123e+2",
+            "-1.2e3", "-123.45E6", "-0.1e-2", "-0.123e+2"
+        })
+     */
+    @ParameterizedTest
+    @MethodSource("provideNumberTestCases")
+    void shouldTokenizeNumber(String jsonText, int startIndex, int endIndex) {
+        Tokenizer tokenizer = new Tokenizer(jsonText.toCharArray());
+        TokenizerToken token = tokenizer.consume();
+
+        TokenizerTokenAssert.assertThat(token)
+                .hasStartIndex(startIndex)
+                .hasEndIndex(endIndex)
+                .hasTokenType(TokenizerTokenType.NUMBER);
+    }
+
+    @Test
+    void shouldThrowUnexpectedCharacterExceptionForMinusSignWithoutDigit() {
+        String jsonText = "-";
+        Tokenizer tokenizer = new Tokenizer(jsonText.toCharArray());
+
+        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::consume)
+                .withMessage("Position: 0. A valid numeric value requires a digit (0-9) after the minus sign");
+    }
+
+    // '-*' where * is any character that is not a number
+    @Test
+    void shouldThrowUnexpectedCharacterExceptionForMinusSignFollowedByInvalidCharacter() {
+        String jsonText = "-a";
+        Tokenizer tokenizer = new Tokenizer(jsonText.toCharArray());
+
+        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::consume)
+                .withMessage("Position: 0. Unexpected character: 'a'. Expected a digit (0-9) after the minus sign");
+    }
+
+    @Test
+    void shouldThrowUnexpectedCharacterExceptionForNumberWithLeadingPositiveSign() {
+        Tokenizer tokenizer = new Tokenizer("+123".toCharArray());
+
+        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::consume)
+                .withMessage("Position: 0. JSON specification prohibits numbers from being prefixed with a plus sign");
+    }
+
+    @Test
+    void shouldThrowUnexpectedCharacterExceptionForNumberWithLeadingZeros() {
+        Tokenizer tokenizer = new Tokenizer("001".toCharArray());
+
+        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::consume)
+                .withMessage("Position: 0. Leading zeros are not allowed");
+    }
+
+    @Test
+    void shouldThrowUnexpectedCharacterExceptionWhenDecimalPointIsNotFollowedByDigit() {
+        Tokenizer tokenizer = new Tokenizer("-12.e5".toCharArray());
+
+        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::consume)
+                .withMessage("Position: 3. Decimal point must be followed by a digit");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"-1.1e", "2436E+"})
+    void shouldThrowUnexpectedCharacterExceptionWhenExponentialNotationIsNotFollowedByDigit(String jsonText) {
+        Tokenizer tokenizer = new Tokenizer(jsonText.toCharArray());
+
+        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::consume)
+                .withMessage("Position: 4. Exponential notation must be followed by a digit");
+    }
+
+    // The following characters in this case are invalid at the top level but valid in an array or an object. The 2nd part
+    // is tested in the parser
+    @ParameterizedTest
+    @ValueSource(strings = {"2a", "3,", "4]", "5}", "6 ", "7\n", "8\t", "9\r"})
+    void shouldThrowUnexpectedCharacterExceptionForNumberFollowedByInvalidCharacter(String jsonText) {
+        Tokenizer tokenizer = new Tokenizer(jsonText.toCharArray());
+
+        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::consume)
+                .withMessage("Position: 1. Unexpected character '" + jsonText.charAt(1) + "'");
+    }
 
     @Test
     void shouldTokenizeJsonTrue() {
@@ -63,94 +156,11 @@ class TokenizerTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"truef", "trfe", "falset", "falst", "nullf", "nulf"})
+    @ValueSource(strings = {"truef", "trfe", "tre", "falset", "falst", "fals", "nullf", "nulf", "nul"})
     void shouldThrowUnrecognizedTokenExceptionWhenJsonTextIsInvalidForJsonBooleanAndNull(String jsonText) {
         Tokenizer tokenizer = new Tokenizer(jsonText.toCharArray());
         assertThatExceptionOfType(UnrecognizedTokenException.class).isThrownBy(tokenizer::consume)
-                .withMessage("Unrecognized token: " + jsonText);
-    }
-
-    /*
-        We use @MethodSource because if we used @ValueSource we wouldn't be able to assert on the start and end index.
-        @ValueSource(strings = {
-            // Positive integers
-            "1", "12345", "0",
-            // Negative integers
-            "-1", "-12345", "-0",
-            // Simple decimals
-            "1.0", "123.45", "0.1", "0.12345", "-1.0", "-123.45", "-0.1", "-0.12345",
-            // Exponential notation (positive base)
-            "1e2", "1E2", "123e+5", "123E+5", "123e-5", "123E-5",
-            // Exponential notation (negative base)
-            "-1e2", "-1E2", "-123e+5", "-123E+5", "-123e-5", "-123E-5",
-            // Exponential notation with decimals
-            "1.2e3", "123.45E6", "0.1e-2", "0.123e+2",
-            "-1.2e3", "-123.45E6", "-0.1e-2", "-0.123e+2"
-        })
-     */
-    @ParameterizedTest
-    @MethodSource("provideNumberTestCases")
-    void shouldTokenizeNumber(String jsonText, int startIndex, int endIndex) {
-        Tokenizer tokenizer = new Tokenizer(jsonText.toCharArray());
-        TokenizerToken token = tokenizer.consume();
-
-        TokenizerTokenAssert.assertThat(token)
-                .hasStartIndex(startIndex)
-                .hasEndIndex(endIndex)
-                .hasTokenType(TokenizerTokenType.NUMBER);
-    }
-
-    @Test
-    void shouldThrowUnexpectedCharacterExceptionForNumberWithLeadingPositiveSign() {
-        Tokenizer tokenizer = new Tokenizer("+123".toCharArray());
-
-        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::consume)
-                .withMessage("JSON specification prohibits numbers from being prefixed with a plus sign");
-    }
-
-    // The jsonText is either '-' or '-*' where * is any character that is not a number
-    @ParameterizedTest
-    @ValueSource(strings = {"-", "-a"})
-    void shouldThrowUnexpectedCharacterExceptionForInvalidNumbersStartingWithMinusSign(String jsonText) {
-        Tokenizer tokenizer = new Tokenizer(jsonText.toCharArray());
-
-        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::consume)
-                .withMessage("A valid numeric value requires a digit (0-9) after the minus sign");
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = {"-001", "001"})
-    void shouldThrowUnexpectedCharacterExceptionForNumberWithLeadingZeros(String jsonText) {
-        Tokenizer tokenizer = new Tokenizer(jsonText.toCharArray());
-
-        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::consume)
-                .withMessage("Leading zeros are not allowed");
-    }
-
-    // For negative, it does not matter because -. is not valid from the minus sign side. After minus, we need a digit
-    @Test
-    void shouldThrowUnexpectedCharacterExceptionForPositiveNumberWithLeadingDecimalPoint() {
-        Tokenizer tokenizer = new Tokenizer(".".toCharArray());
-
-        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::consume)
-                .withMessage("A leading digit is required before a decimal point");
-    }
-
-    @Test
-    void shouldThrowUnexpectedCharacterExceptionWhenDecimalPointIsNotFollowedByDigit() {
-        Tokenizer tokenizer = new Tokenizer("-12.e5".toCharArray());
-
-        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::consume)
-                .withMessage("Decimal point must be followed by a digit");
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = {"-12.1e", "24E+"})
-    void shouldThrowUnexpectedCharacterExceptionWhenExponentialNotationIsNotFollowedByDigit(String jsonText) {
-        Tokenizer tokenizer = new Tokenizer(jsonText.toCharArray());
-
-        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::consume)
-                .withMessage("Exponential notation must be followed by a digit");
+                .withMessage("Unrecognized token: '" + jsonText + "'. Expected a valid JSON value");
     }
 
     // Always read the comment on top of the class to understand the values passed
@@ -294,7 +304,7 @@ class TokenizerTest {
         Tokenizer tokenizer = new Tokenizer("\"\\\"".toCharArray());
 
         assertThatExceptionOfType(UnterminatedValueException.class).isThrownBy(tokenizer::consume)
-                .withMessage("Unterminated value for: " + TokenizerTokenType.STRING);
+                .withMessage("Position: 2. Unterminated value for JSON String");
     }
 
     @Test
@@ -302,7 +312,7 @@ class TokenizerTest {
         Tokenizer tokenizer = new Tokenizer("\"abc".toCharArray());
 
         assertThatExceptionOfType(UnterminatedValueException.class).isThrownBy(tokenizer::consume)
-                .withMessage("Unterminated value for: " + TokenizerTokenType.STRING);
+                .withMessage("Position: 4. Unterminated value for JSON String");
     }
 
     @Test
@@ -310,7 +320,7 @@ class TokenizerTest {
         Tokenizer tokenizer = new Tokenizer("\"\\q".toCharArray());
 
         assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::consume)
-                .withMessage("Unexpected escape character: q");
+                .withMessage("Position: 2. Unexpected escape character: q");
     }
 
     @Test
@@ -318,36 +328,40 @@ class TokenizerTest {
         Tokenizer tokenizer = new Tokenizer("\"\\".toCharArray());
 
         assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::consume)
-                .withMessage("Incomplete character escape sequence");
+                .withMessage("Position: 1. Incomplete character escape sequence");
     }
 
-    /*
-        For the 1st value read the comment in handleUnicodeEscapeSequence()
-        '!' not a valid character for a hex digit(0 - 9, A - F, a - f)
-     */
-    @ParameterizedTest(name = "{index}: shouldThrowUnexpectedCharacterExceptionForInvalidOrIncompleteUnicodeSequence ({0})")
-    @ValueSource(strings = {"\"\\u00E", "\"\\u00E!\""})
-    void shouldThrowUnexpectedCharacterExceptionForInvalidOrIncompleteUnicodeSequence(String input) {
-        Tokenizer tokenizer = new Tokenizer(input.toCharArray());
+    @Test
+    void shouldThrowUnexpectedCharacterExceptionForIncompleteUnicodeCharacterSequence() {
+        Tokenizer tokenizer = new Tokenizer("\"\\u00E".toCharArray());
 
         assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::consume)
-                .withMessage("A hex-digit was expected in the character escape sequence");
+                .withMessage("Position: 5. Unexpected end of input for unicode escape sequence");
     }
+
+    @Test
+    void shouldThrowUnexpectedCharacterExceptionForInvalidCharactersInUnicodeSequence() {
+        Tokenizer tokenizer = new Tokenizer("\"\\u00E!\"".toCharArray());
+
+        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::consume)
+                .withMessage("Position: 6. Unexpected character: '!'. A hex-digit was expected in the character escape sequence");
+    }
+
 
     @Test
     void shouldThrowUnrecognizedTokenExceptionForInvalidCharacters() {
         Tokenizer tokenizer = new Tokenizer("@".toCharArray());
 
         assertThatExceptionOfType(UnrecognizedTokenException.class).isThrownBy(tokenizer::consume)
-                .withMessage("Unrecognized token: @");
+                .withMessage("Position: 0. Unrecognized token: '@'. Expected a valid JSON value");
     }
 
     static Stream<Arguments> provideNumberTestCases() {
         return Stream.of(
                 Arguments.of("1", 0, 0),
                 Arguments.of("12345", 0, 4),
-                Arguments.of("0", 0, 0),
                 Arguments.of("-1", 0, 1),
+                Arguments.of("-0", 0, 1),
                 Arguments.of("-12345", 0, 5),
                 Arguments.of("1.0", 0, 2),
                 Arguments.of("123.45", 0, 5),

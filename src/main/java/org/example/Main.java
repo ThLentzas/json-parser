@@ -4,12 +4,16 @@ import org.example.decoder.Decoder;
 import org.example.parser.Parser;
 import org.example.tokenizer.Tokenizer;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 /*
     THE MOST FUNDAMENTAL THING TO ALWAYS REMEMBER is to ALWAYS provide the precompiled sequence of characters to the
     parser. In Java escape character/sequences are converted by the compiler at compile time to their corresponding
     character. This is not the expected behaviour according to rfc that states that a parser must determine that those
     2 strings are equal "a\\b" and "a\u005Cb" which will not be possible for the parser since at compile the unicode code
-    sequence will be converted. Instead we sent {'a', '\', 'u', '0', '0', '5', 'c', 'b'} and we let the parser do the
+    sequence will be converted. Instead, we sent {'a', '\', 'u', '0', '0', '5', 'c', 'b'} and we let the parser do the
     conversion. This is very important because RFC states that we can represent Json strings with unicode escape sequences
 
     For example, this jsonText = "\"\\\\\\\\\\\\\\\\\\\\\\\\\\u\""; consists of 26 '\' which at runtime are converted
@@ -50,7 +54,7 @@ import org.example.tokenizer.Tokenizer;
     U+1F600(😀). In our byte array we process \uD83D, \uDE00, determine high/low, and combine them.
  */
 public class Main {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         // "\"A\\uD83D\\uDE00Bé\"" utf-8 values
         byte[] bytes = {34, 65, 92, 117, 68, 56, 51, 68, 92, 117, 68, 56, 51, 68, 66, -61, -87, 34};
         Decoder decoder = new Decoder();
@@ -81,6 +85,8 @@ public class Main {
               }
           }""";
         jsonText = "{\"xd\": 1}";
+        jsonText = Files.readString(Path.of("src/main/java/org/example/test.json"));
+        System.out.println(jsonText.substring(5380, 5500));
         Tokenizer tokenizer = new Tokenizer(jsonText.toCharArray());
 
         Parser parser = new Parser(tokenizer);

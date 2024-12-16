@@ -39,3 +39,5 @@ k
 ;src/main/java/org/example/exception/TokenizerException.java,5\a\5a4a1c1be2c29baffb5e23f271bad8fb0a72f653
 t
 Dsrc/main/java/org/example/exception/MalformedStructureException.java,9\b\9ba7d224f2f16147d37cf33b9951aa062da83bf9
+S
+#src/main/java/org/example/test.json,9\f\9fc655591b811679ae6ced965b4e2d0381f699c3
