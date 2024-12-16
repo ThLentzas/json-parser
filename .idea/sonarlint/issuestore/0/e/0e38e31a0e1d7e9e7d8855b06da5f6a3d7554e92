@@ -1,17 +1,17 @@
 
-y
-java:S1192ô"VDefine a constant instead of duplicating this literal "Unrecognized token: '" 8 times.(Ø¡œĞúÿÿÿÿ8å…“„½2
-‚
-java:S1192ö"_Define a constant instead of duplicating this literal "'. Expected a valid JSON value" 8 times.(²ÿÀÁùÿÿÿÿ8å…“„½2
-i
-java:S1192T"LDefine a constant instead of duplicating this literal "Position: " 17 times.(ù„Åê8å…“„½2
-n
-java:S1301ò"KReplace this "switch" statement by "if" statements to increase readability.(Ëó‹•úÿÿÿÿ8å…“„½2
-p
-java:S3776¹"RRefactor this method to reduce its Cognitive Complexity from 23 to the 15 allowed.(¾¨¡8¯†“„½2
-U
-java:S1135¯"2Complete the task associated to this TODO comment.(ÔäºÉúÿÿÿÿ8°†“„½2
-h
-java:S1764Ÿ"KCorrect one of the identical sub-expressions on both sides of operator "||"(É‚ò8·†“„½2
-Y
-java:S1144ç"6Remove this unused private "handleLeadingZero" method.(‹×À‘üÿÿÿÿ8¹†“„½2
+Ÿ
+java:S1192"VDefine a constant instead of duplicating this literal "Unrecognized token: '" 8 times.(Ø¡œĞúÿÿÿÿ8¥Å³„½2J$2a1e68eb-9b62-4843-ae8f-ce4e2781c825
+¨
+java:S1192ƒ"_Define a constant instead of duplicating this literal "'. Expected a valid JSON value" 8 times.(²ÿÀÁùÿÿÿÿ8¥Å³„½2J$e8bf0122-ce83-40fa-be64-21beed6f5d72
+
+java:S1192b"LDefine a constant instead of duplicating this literal "Position: " 16 times.(ù„Åê8¥Å³„½2J$b892b1cb-9683-4f96-aa44-37db13282ce3
+”
+java:S1301ÿ"KReplace this "switch" statement by "if" statements to increase readability.(Ëó‹•úÿÿÿÿ8¦Å³„½2J$658d28a6-a55d-412f-99fe-ccd4cfb162c2
+z
+java:S1135t"2Complete the task associated to this TODO comment.(¶¬Ñ¹üÿÿÿÿ8…â™…½2J$d7d7a4ab-3061-4f23-9b81-afc45db63762
+–
+java:S3776Æ"RRefactor this method to reduce its Cognitive Complexity from 23 to the 15 allowed.(¾¨¡8ñÅ³„½2J$b275535f-be4c-4cfd-bcdb-a35b7780c519
+{
+java:S1135¼"2Complete the task associated to this TODO comment.(ÔäºÉúÿÿÿÿ8òÅ³„½2J$70f1e989-f930-4b4c-ba66-13dfed6e441b
+
+java:S1764¬"KCorrect one of the identical sub-expressions on both sides of operator "||"(É‚ò8øÅ³„½2J$fa80062c-5968-4efb-98d8-ffbe0d2c4c49

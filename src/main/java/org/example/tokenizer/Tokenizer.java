@@ -44,13 +44,28 @@ public final class Tokenizer {
     }
 
     public TokenizerToken nextToken() {
-        if(this.position == this.buffer.length) {
+        if (this.position == this.buffer.length) {
             return null;
         }
 
-        int count = this.tokens.size();
+        /*
+            When peek() is called by parser's assertNoTrailingCharacters() we need to consider the case 3 mentioned in
+            that method.
+            "{}\t\b\r\n   " Any whitespace characters after structural characters are considered insignificant.
+
+            Without if:
+                1. After parsing {}, the tokenizer's position is right after }.
+                2. The input still contains whitespace. The tokenizer calls tokenize(), which skips the whitespace and
+                reaches the end of the input without producing any new tokens.
+                3. peek() then tries to revert the position and mark peeked = true, but since no new token was produced,
+                 it ends up returning the last token '}' incorrectly. Control returns to assertNoTrailingCharacters()
+                 and despite not having a new token peek() returns '}'. For assertNoTrailingCharacters() means that
+                 a token was found and as a trailing character, and it considers it invalid.
+            By checking the count before and after in this case we make sure that we handle this case gracefully
+         */
+        int tokenCount = this.tokens.size();
         tokenize();
-        if(count == this.tokens.size()) {
+        if (tokenCount == this.tokens.size()) {
             return null;
         }
         return this.tokens.get(this.tokens.size() - 1);
@@ -78,7 +93,6 @@ public final class Tokenizer {
                 this.stack.push(this.buffer[this.position]);
                 this.tokens.add(new TokenizerToken(this.position, this.position, TokenizerTokenType.LEFT_CURLY_BRACKET));
             }
-            // upper bounds for numbers
             case '}' -> {
                 if (stack.isEmpty()) {
                     throw new UnexpectedCharacterException("Position: " + this.position + ". Unexpected character: '}'");
@@ -99,11 +113,10 @@ public final class Tokenizer {
             }
             case ':' -> this.tokens.add(new TokenizerToken(this.position, this.position, TokenizerTokenType.COLON));
             case ',' -> this.tokens.add(new TokenizerToken(this.position, this.position, TokenizerTokenType.COMMA));
+            // toDo: upper bounds for numbers
             // signs, decimal point and exponential notation
             case '-', '+', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' -> {
                 tokenizeNumber();
-                // position - 1, because position is at the 1st character after the end of number, out of the array if we had just number
-                // which means position is already advanced we don't need to do, this.position++
                 this.tokens.add(new TokenizerToken(initialPosition, this.position, TokenizerTokenType.NUMBER));
             }
             case '"' -> {
@@ -159,7 +172,7 @@ public final class Tokenizer {
             throw new UnexpectedCharacterException("Position: " + this.position + ". Unexpected character: '" + this.buffer[this.position + 1] + "'. Expected a digit (0-9) after the minus sign");
         }
 
-        // position + 1 is a digit advance the pointer
+        // position + 1 is a digit, advance the pointer
         this.position++;
         tokenizerNumberHelper();
     }
@@ -459,44 +472,44 @@ public final class Tokenizer {
                 + this.buffer[this.position + 2]
                 + this.buffer[this.position + 3]
                 + this.buffer[this.position + 4];
-            /*
-                Why this narrowing conversion is allowed here without any data loss? (char) codePoint
+        /*
+            Why this narrowing conversion is allowed here without any data loss? (char) codePoint
 
-                We know that our unicode sequence will have 4 hex digits and the maximum value we can have with 4 digits
-                is FFFF which results in 65535. char is an unsigned 16-bit value, with a valid range of 0 to 65535 (0x0000 to 0xFFFF).
-                Since the maximum value of a 4-digit hexadecimal sequence (FFFF) fits within the range of char, there is
-                no risk of data loss during this narrowing conversion.
+            We know that our unicode sequence will have 4 hex digits and the maximum value we can have with 4 digits
+            is FFFF which results in 65535. char is an unsigned 16-bit value, with a valid range of 0 to 65535 (0x0000 to 0xFFFF).
+            Since the maximum value of a 4-digit hexadecimal sequence (FFFF) fits within the range of char, there is
+            no risk of data loss during this narrowing conversion.
 
-                Assigning an int to a char gives us the character representation of the int's Unicode value
-                codepoint = 65 -> c = 'A'. If the int value is in the range of surrogate pairs -> c = '�' It can also have
-                unicode escape sequence as value because they represent a single character c = '\uD838'
-                char c = (char) codePoint;
-             */
+            Assigning an int to a char gives us the character representation of the int's Unicode value
+            codepoint = 65 -> c = 'A'. If the int value is in the range of surrogate pairs -> c = '�' It can also have
+            unicode escape sequence as value because they represent a single character c = '\uD838'
+            char c = (char) codePoint;
+        */
         int codePoint = Integer.parseInt(hexSequence, 16);
-            /*
-                For the hexSequence we just formed we can get the numeric value hexSequence = "D83D" -> codepoint = 55357
-                Valid surrogate pairs always have the same order (High - Low)
+        /*
+            For the hexSequence we just formed we can get the numeric value hexSequence = "D83D" -> codepoint = 55357
+            Valid surrogate pairs always have the same order (High - Low)
 
-                Case: High Surrogate -> call handleSurrogatePair()
-                Case: Low Surrogate or character in BMP, convert the hex sequence to the corresponding character. For
-                low surrogates since they don't represent any character by themselves we get '�'
-             */
+            Case: High Surrogate -> call handleSurrogatePair()
+            Case: Low Surrogate or character in BMP, convert the hex sequence to the corresponding character. For
+            low surrogates since they don't represent any character by themselves we get '�'
+        */
         if (Character.isSurrogate((char) codePoint) && (Character.isHighSurrogate((char) codePoint))) {
             handleSurrogatePair(codePoint);
             return;
         }
-            /*
-                At this point we either have a low surrogate or BMP character. In either case we need to replace the
-                unicode escape sequence with the corresponding character. This is vital to follow the rfc string comparison
-                section where "a\\b" and "a\u005Cb" must be equal.
+        /*
+            At this point we either have a low surrogate or BMP character. In either case we need to replace the
+            unicode escape sequence with the corresponding character. This is vital to follow the rfc string comparison
+            section where "a\\b" and "a\u005Cb" must be equal.
 
-                We need to replace \u005C with '\', this.position is at 'u'. To correctly insert the converted character,
-                we create a substring from the start of the array until this.position - 1 which includes all the characters
-                until the start of the escape sequence, then we append the new converted character and then the remaining
-                part of the array which starts at this.position + 5 to not include the unicode sequence u005C. Note that
-                we don't overwrite the values of the buffer, but we create a new char[] instead.
+            We need to replace \u005C with '\', this.position is at 'u'. To correctly insert the converted character,
+            we create a substring from the start of the array until this.position - 1 which includes all the characters
+            until the start of the escape sequence, then we append the new converted character and then the remaining
+            part of the array which starts at this.position + 5 to not include the unicode sequence u005C. Note that
+            we don't overwrite the values of the buffer, but we create a new char[] instead.
 
-                Resetting the position:
+            Resetting the position:
                 What we did was to keep all the characters before the escape sequence, then add the new character at
                 the position of '\' and then keep all the characters after the sequence. Our index is currently at
                 wherever 'u' was. We need this.position to point to the new converted character so when the flow returns
@@ -506,7 +519,7 @@ public final class Tokenizer {
 
                 "a\u005Cb" this.position = 2 -> replace the sequence \u005C -> "a\b" -> position must point to the new
                 character, position - 1
-             */
+        */
         this.buffer = (String.valueOf(this.buffer).substring(0, this.position - 1)
                 + String.valueOf(Character.toChars(codePoint))
                 + String.valueOf(this.buffer).substring(this.position + 5)).toCharArray();
@@ -546,22 +559,22 @@ public final class Tokenizer {
             // Case 2: 2 High surrogates in a row
             // Case 3: HighSurrogate into BMP
             String str;
-                /*
-                    We have 2 codepoints, the highSurrogate which is passed from handleUnicodeEscapeSequence() and the
-                    one we just compute for the next unicode sequence we found. The following process is explained in detail in
-                    the method above handleUnicodeEscapeSequence() when we were converting a unicode sequence to a BMP
-                    character.
-                    While previously we only converted 1 character, now we have to handle 2. If it is a surrogate
-                    pair or 2 high surrogates in a row, the array will have '�', '�' because in UTF_8 surrogates by themselves
-                    don't correspond to any character. When we decode them in the case of a surrogate pair we will get
-                    the correct character. (�, � under the hood hold the unicode values, so they are encoded correctly)
-                    e.g. 2 high surrogates: "A\uD83D\uD83DBé" -> [", A, �, �, B, é, "] = [34, 65, '\uD83D'(55357), '\uD83D'(55357), 66, 233, 34]
+            /*
+                We have 2 codepoints, the highSurrogate which is passed from handleUnicodeEscapeSequence() and the
+                one we just compute for the next unicode sequence we found. The following process is explained in detail in
+                the method above handleUnicodeEscapeSequence() when we were converting a unicode sequence to a BMP
+                character.
+                While previously we only converted 1 character, now we have to handle 2. If it is a surrogate
+                pair or 2 high surrogates in a row, the array will have '�', '�' because in UTF_8 surrogates by themselves
+                don't correspond to any character. When we decode them in the case of a surrogate pair we will get
+                the correct character. (�, � under the hood hold the unicode values, so they are encoded correctly)
+                e.g. 2 high surrogates: "A\uD83D\uD83DBé" -> [", A, �, �, B, é, "] = [34, 65, '\uD83D'(55357), '\uD83D'(55357), 66, 233, 34]
 
-                    Note: Previously we reset the index(this.position) now we don't because if we have a surrogate pair
-                    or 2 surrogate highs we insert 2 characters in the array. We know that this.position is at 'u' and
-                    we insert (�,  �) in the positions of ('\' previous of position) and ('u') so this.position points
-                    to the correct character, control returns to tokenizeString() and this.position is incremented.
-                 */
+                Note: Previously we reset the index(this.position) now we don't because if we have a surrogate pair
+                or 2 surrogate highs we insert 2 characters in the array. We know that this.position is at 'u' and
+                we insert (�,  �) in the positions of ('\' previous of position) and ('u') so this.position points
+                to the correct character, control returns to tokenizeString() and this.position is incremented.
+            */
             if (Character.isLowSurrogate((char) codePoint)) {
                 int surrogatePair = Character.toCodePoint((char) highSurrogate, (char) codePoint);
                 str = String.valueOf(this.buffer).substring(0, this.position - 1)
@@ -737,31 +750,6 @@ public final class Tokenizer {
             } else {
                 isWhiteSpace = false;
             }
-        }
-    }
-
-    private void handleLeadingZero() {
-        // Consecutive zeros are not allowed e.g. 0002
-
-            /*
-                We have to consider the following cases where a leading 0 is valid
-                    1. Array value: [0, ....]
-                    2. Last value of the array: [....0]
-                    3. 0 as value in an array or object followed by RFC whitespaces e.g. [..0 \t \r \n, ...] is considered
-                    valid because the whitespace characters are after 0 but before ',' which is considered a structural
-                    character and whitespace characters are allowed before and after
-                    4. Value of an object: { "key" : 0}
-                In any of those cases if our stack is empty we don't have any nesting and we throw. e.g. 0, 0], 0\t
-
-                All other cases will be handled by tokenizeNumberHelper() including cases like 0.3 which is considered
-                valid
-             */
-        if ((this.buffer[this.position + 1] == ','
-                || this.buffer[this.position + 1] == ']'
-                || this.buffer[this.position + 1] == '}'
-                || isRFCWhiteSpace(this.buffer[this.position + 1]))
-                && this.stack.isEmpty()) {
-            throw new UnexpectedCharacterException("Position: " + this.position + ". Leading zeros are not allowed");
         }
     }
 

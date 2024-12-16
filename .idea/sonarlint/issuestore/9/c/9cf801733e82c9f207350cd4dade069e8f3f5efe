@@ -1,13 +1,13 @@
 
+ 
+java:S11929"XDefine a constant instead of duplicating this literal "Expected: ']' for Array" 3 times.(ÎÑİÌøÿÿÿÿ8¦¦…½2J$5e23aa7a-e0b9-4c5a-9e69-7e02345abb80
+
+java:S1192À"ZDefine a constant instead of duplicating this literal ". Unexpected character: '" 5 times.(û·¨8Ÿ¦¦…½2J$1212136d-e8ca-4bdd-93d3-f3f7cb42e1fe
+
+java:S1192À"KDefine a constant instead of duplicating this literal "Position: " 6 times.(û·¨8Ÿ¦¦…½2J$24aed026-93e1-49cb-abfa-bbc1cba575c3
 z
-java:S1192k"XDefine a constant instead of duplicating this literal "Expected: ']' for Array" 3 times.(ÎÑİÌøÿÿÿÿ8Ä†“„½2
-x
-java:S1192ÿ"ZDefine a constant instead of duplicating this literal ". Unexpected character: '" 5 times.(û·¨8Ä†“„½2
-i
-java:S1192ÿ"KDefine a constant instead of duplicating this literal "Position: " 6 times.(û·¨8Å†“„½2
+java:S1135o"2Complete the task associated to this TODO comment.(Û–ûôüÿÿÿÿ8£Í³…½2J$87278620-25f5-408f-b359-1f55f82b661c
 n
-java:S1068@",Remove this unused "position" private field.(•È?8¶ãÍÿ»2J$22f9ac27-5b7a-4961-aa06-9e87a2f3a01d
-G
-java:S1144†")Remove this unused private "peek" method.(ÉÕ¥ñ8ê†“„½2
-[
-java:S1144"=Remove this unused private "buildLexicalErrorMessage" method.(Á×ÜÏ8ê†“„½2
+java:S1068",Remove this unused "position" private field.(•È?8¿¦¦…½2J$8c348ca4-3d9b-4007-8652-a2847eac508c
+
+java:S1144Ã"=Remove this unused private "buildLexicalErrorMessage" method.(Á×ÜÏ8¿¦¦…½2J$70a7030c-7e7e-42c3-9580-81081c5bace7

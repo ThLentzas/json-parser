@@ -13,46 +13,8 @@ import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Function;
 
 /*
-    Why do we need peek() before calling consume()? This is true for every case
-
-    Parser needs to verify that the provided text follows the expected structure as defined by the rfc.
-    For example, according to rfc:
-        "An object structure is represented as a pair of curly brackets surrounding zero or more name/value pairs
-        (or members).  A name is a string.  A single colon comes after each name, separating the name from the value.
-        A single comma separates a value from a following name. The names within an object SHOULD be unique."
-
-    We call parser.parse() -> parseValue() -> encounter '{', create a token, push it to the stack. According to the
-    object structure we either expect '}' or a valid string name. By calling peek():
-        We validate that the next token is grammatically allowed in the current parse state. This is explained above
-        the initialPosition on the Tokenizer class, but in short before we validate the structure we need to verify that
-        the next token is grammatically correct(e.g. "some valid string"). The call to consume() will ALWAYS return a
-        grammatically correct token, and then it will verify if it follows the expected structure like {"key" : value}
-        Any exception thrown from the tokenizer then can be caught to reflect the context as explained in initialPosition
-        of the Tokenizer class
-    Another use case is: [2]
-        After adding as token the '[', we need to look ahead to the next value to make sure that is grammatically correct
-        not structural, we call peek(), it returns 2, 2 is neither invalid nor ']' to indicate an empty. For the correct
-        array structure, we SHOULD have a valid JSON value. We call parseValue(), parseValue() calls consume() and it
-        returns the same token peek() did which is the expected behaviour.
-    What happens if we use consume() instead of peek()?
-        consume() ADVANCES the index, which means that after looking at 2 as a valid token we call parseValue() which
-        internally calls consume() we would advance the index again missing one token. consume() from parseValue would
-        return ']' which is not a valid JSON value. It's crucial to reset the index after calling peek().
-
-    IMPORTANT!
-        peek() and consume() will return the same token, but we don't do the tokenization process twice. consume() looks at
-        a temp variable that holds the token that peek() tokenized and returns it. We still do a linear search where we
-        visit each element of the buffer once
-
-    Error handling:
-        For grammatical errors we use tokenizer.getInitialPosition() which returns initialPosition(already explained in
-        Tokenizer).
-        For structural errors, we encountered a valid token but not the expected one ({"key" 123 value} we encountered a
-        valid number instead of ':' we use the startIndex of the token). Read parseValue() for an exception
-
     Why we don't have a char[] buffer, and we access the elements from the Tokenizer?
         As tokenizer progresses through its buffer it will replace the content in case of an escape sequence and then
         the 2 buffers will not be the same anymore. Doing in the parser's constructor this.buffer = this.tokenizer.getBuffer()
@@ -72,37 +34,25 @@ public final class Parser {
     }
 
     public void parse() {
-        TokenizerToken token = peek();
+        TokenizerToken token = this.tokenizer.nextToken();
         parseValue(token);
     }
 
     /*
-        Why do we need peek()?
-
         When we encounter '[', we begin parsing an array by calling parseArray(). The next step is to determine if the
         array is empty by consuming the following token:
             If the next token is null, it means we’ve reached the end of the input unexpectedly, resulting in an
             unterminated array error.
             If the next token is ']', it indicates an empty array.
             If the token is neither null nor ], we assume it should be the start of a value.
-
-        What does peek() do? We look ahead at the next token without actually advancing the tokenizer's reading position.
-        By peeking, we gain information about what the next token will be if we were to consume it. This means that
-        we look at the next token without advancing this.position, the index the tokenizer uses to keep track of the
-        current token. This way we peek(), and then we check if we have null or ']', parseValue() gets called
-        which will return the token we just peeked . After the value is parsed we expect a comma as long as no exception
-        was previously throw. Notice that we call consume() and not parseValue() because comma is not a JSON value.
      */
     private void parserArray(TokenizerToken token) {
-        addToken(token.getStartIndex(), token.getEndIndex(), ParserTokenType.ARRAY_START);
+        this.tokens.add(new ParserToken(token.getStartIndex(), token.getEndIndex(), ParserTokenType.ARRAY_START));
         this.stack.push('[');
         this.tokenizer.advance();
         TokenizerToken nextToken;
-        /*
-            We need peek() for the same reason as any other case, to ensure the next token is valid. Let's consider this case
-            ['']. When the tokenizer tries to parse ' which is an unrecognized token it throws.
-         */
-        nextToken = peek();
+
+        nextToken = this.tokenizer.nextToken();
         if (nextToken == null) {
             throw new MalformedStructureException(buildStructuralErrorMessage("Expected: ']' for Array"));
         }
@@ -113,13 +63,13 @@ public final class Parser {
         }
 
         parseValue(nextToken);
-        nextToken = peek();
+        nextToken = this.tokenizer.nextToken();
         while (nextToken != null && nextToken.getType().equals(TokenizerTokenType.COMMA)) {
-            addToken(nextToken.getStartIndex(), nextToken.getEndIndex(), ParserTokenType.VALUE_SEPARATOR);
+            this.tokens.add(new ParserToken(token.getStartIndex(), token.getEndIndex(), ParserTokenType.VALUE_SEPARATOR));
             this.tokenizer.advance();
-            nextToken = peek();
+            nextToken = this.tokenizer.nextToken();
             parseValue(nextToken);
-            nextToken = peek();
+            nextToken = this.tokenizer.nextToken();
         }
 
         if (nextToken == null) {
@@ -140,12 +90,12 @@ public final class Parser {
     }
 
     private void parseObject(TokenizerToken token) {
-        addToken(token.getStartIndex(), token.getEndIndex(), ParserTokenType.OBJECT_START);
+        this.tokens.add(new ParserToken(token.getStartIndex(), token.getEndIndex(), ParserTokenType.OBJECT_START));
         this.stack.push('{');
         this.tokenizer.advance();
         TokenizerToken nextToken;
 
-        nextToken = peek();
+        nextToken = this.tokenizer.nextToken();
         if (nextToken == null) {
             throw new MalformedStructureException(buildStructuralErrorMessage("Expected: '}' for Object"));
         }
@@ -158,15 +108,16 @@ public final class Parser {
 
         Set<String> names = new HashSet<>();
         while (true) {
+            // toDo: fix this NPE that happens after the 2nd to last if
             assertStringKey(nextToken, names);
             this.tokenizer.advance();
-            nextToken = peek();
+            nextToken = this.tokenizer.nextToken();
             assertColon(nextToken);
             this.tokenizer.advance();
-            nextToken = peek();
+            nextToken = this.tokenizer.nextToken();
             parseValue(nextToken);
 
-            nextToken = peek();
+            nextToken = this.tokenizer.nextToken();
             if (nextToken == null) {
                 throw new MalformedStructureException(buildStructuralErrorMessage("Expected: '}' for Object"));
             }
@@ -179,7 +130,7 @@ public final class Parser {
             if (nextToken.getType().equals(TokenizerTokenType.COMMA)) {
                 addToken(nextToken.getStartIndex(), nextToken.getEndIndex(), ParserTokenType.VALUE_SEPARATOR);
                 this.tokenizer.advance();
-                nextToken = peek();
+                nextToken = this.tokenizer.nextToken();
             } else {
                 assertNoTrailingCharacters(nextToken, ParserTokenType.OBJECT_END);
                 this.tokenizer.advance();
@@ -225,21 +176,7 @@ public final class Parser {
         it throws. It is not that ' is not considered a JSON value it is that is invalid token. Valid tokens like '}' are
         considered invalid JSON values.
      */
-
     private void parseValue(TokenizerToken token) {
-         /*
-            For grammatical errors that occur when we tokenize an invalid token to ensure we have the correct structure
-            e.g. {nul : value}. When we tokenize null an exception will be thrown something like unknown token etc.
-            which does not reflect the context. The correct error would have been expected string value for key name
-            etc. It is already explained in the initialPosition of the Tokenizer how this is done and in this class
-            every time peek() is called a MalformedStructureException is thrown with an adjusted message.
-
-            parseValue() is the exception on this rule. When parseValue() tries to tokenize the next token if there
-            is something wrong with the token we throw the message from the Tokenizer.
-            e.g. {"key" : 123a} In this case, there is no structural error. We have an invalid value, we expect
-            an error message like "Unexpected character 'a'", this is why we don't adjust the exception message
-            thrown by the Tokenizer
-        */
         if (token == null) {
             return;
         }
@@ -333,13 +270,13 @@ public final class Parser {
      */
 
     private void assertNoTrailingCharacters(TokenizerToken token, ParserTokenType type) {
-        addToken(token.getStartIndex(), token.getEndIndex(), type);
+        this.tokens.add(new ParserToken(token.getStartIndex(), token.getEndIndex(), type));
         this.stack.pop();
 
         this.tokenizer.advance();
         if (this.stack.isEmpty()) {
             try {
-                token = peek();
+                token = this.tokenizer.nextToken();
                 /*
                     We have more characters after an empty array and no nested objects
                     Let's consider this example: jsonText = "{}}";
@@ -380,18 +317,6 @@ public final class Parser {
             } catch (TokenizerException te) {
                 throw new MalformedStructureException("Position: " + this.tokenizer.getInitialPosition() + ". Unexpected character: '" + this.tokenizer.getBuffer()[this.tokenizer.getInitialPosition()] + "'");
             }
-        }
-    }
-
-    private TokenizerToken peek() {
-        return this.tokenizer.nextToken();
-    }
-
-    private TokenizerToken peek(Function<TokenizerException, MalformedStructureException> exceptionHandler) {
-        try {
-            return this.tokenizer.nextToken();
-        } catch (TokenizerException te) {
-            throw exceptionHandler.apply(te);
         }
     }
 
