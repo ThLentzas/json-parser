@@ -41,3 +41,15 @@ t
 Dsrc/main/java/org/example/exception/MalformedStructureException.java,9\b\9ba7d224f2f16147d37cf33b9951aa062da83bf9
 S
 #src/main/java/org/example/test.json,9\f\9fc655591b811679ae6ced965b4e2d0381f699c3
+i
+9src/main/java/org/example/exception/LexicalException.java,3\a\3a29247ccafec3a5e753d2bd6e23c29095b17808
+]
+-src/test/java/parser/resources/example_1.json,9\c\9c4adec327601d019da9f474f02fadb16131e06f
+]
+-src/test/java/parser/resources/example_2.json,b\4\b4aafc43797ce79934545b5492d76db8aa1a8423
+]
+-src/test/java/parser/resources/example_3.json,b\b\bb6abcc96e00d47ea4511ae0f8bb2fedb7f25b58
+]
+-src/test/java/parser/resources/example_4.json,e\1\e1592004c8bf72b2160290207ea84dae61aa412f
+]
+-src/test/java/parser/resources/example_5.json,5\f\5f1c980ad1257ee3618dfe6b9596b561c68b28e4

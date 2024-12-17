@@ -187,7 +187,6 @@ class TokenizerTest {
     }
 
     // Always read the comment on top of the class to understand the values passed
-    // toDO: Assert that when we parse it as String it contains ?,? since both are high surrogates and not a valid surrogate pair
     @Test
     void shouldTokenizeJsonStringWith2ConsecutiveHighSurrogates() {
         Tokenizer tokenizer = new Tokenizer("\"A\\uD83D\\uD83DBé\"".toCharArray());
@@ -221,7 +220,6 @@ class TokenizerTest {
                 .hasTokenType(TokenizerTokenType.STRING);
     }
 
-    // toDO: Assert that when we parse it as String it contains ?,? since both are low surrogates and not a valid surrogate pair
     @Test
     void shouldTokenizeJsonStringWith2ConsecutiveLowSurrogates() {
         Tokenizer tokenizer = new Tokenizer("\"A\\uDE00\\uDE00B\\u00E9\"".toCharArray());

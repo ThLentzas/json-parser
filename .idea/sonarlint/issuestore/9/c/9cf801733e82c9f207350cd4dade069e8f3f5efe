@@ -1,13 +1,9 @@
 
  
-java:S11929"XDefine a constant instead of duplicating this literal "Expected: ']' for Array" 3 times.(ÎÑİÌøÿÿÿÿ8¦¦…½2J$5e23aa7a-e0b9-4c5a-9e69-7e02345abb80
+java:S1192E"XDefine a constant instead of duplicating this literal "Expected: ']' for Array" 3 times.(§Æû‹ıÿÿÿÿ8°§Ä“½2J$8ceb33c0-7d8f-48f6-9061-7b2e54ca662b
 
-java:S1192À"ZDefine a constant instead of duplicating this literal ". Unexpected character: '" 5 times.(û·¨8Ÿ¦¦…½2J$1212136d-e8ca-4bdd-93d3-f3f7cb42e1fe
+java:S1192Ø"ZDefine a constant instead of duplicating this literal ". Unexpected character: '" 4 times.(û·¨8°§Ä“½2J$e2a61afe-225a-4063-8733-f9697b05d5e8
 
-java:S1192À"KDefine a constant instead of duplicating this literal "Position: " 6 times.(û·¨8Ÿ¦¦…½2J$24aed026-93e1-49cb-abfa-bbc1cba575c3
-z
-java:S1135o"2Complete the task associated to this TODO comment.(Û–ûôüÿÿÿÿ8£Í³…½2J$87278620-25f5-408f-b359-1f55f82b661c
+java:S1192Ø"KDefine a constant instead of duplicating this literal "Position: " 5 times.(û·¨8°§Ä“½2J$c5ef6d8a-eec6-477c-9c42-99967d9692ab
 n
-java:S1068",Remove this unused "position" private field.(•È?8¿¦¦…½2J$8c348ca4-3d9b-4007-8652-a2847eac508c
-
-java:S1144Ã"=Remove this unused private "buildLexicalErrorMessage" method.(Á×ÜÏ8¿¦¦…½2J$70a7030c-7e7e-42c3-9580-81081c5bace7
+java:S1068",Remove this unused "position" private field.(•È?8Í§Ä“½2J$6d69a00e-34f7-48c1-992b-cb5215326313

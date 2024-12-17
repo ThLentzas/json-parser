@@ -1,6 +1,6 @@
 package org.example.exception;
 
-public class UnrecognizedTokenException extends TokenizerException {
+public class UnrecognizedTokenException extends LexicalException {
 
     public UnrecognizedTokenException() {
         super();

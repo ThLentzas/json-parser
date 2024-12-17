@@ -1,13 +1,5 @@
 package org.example;
 
-import org.example.decoder.Decoder;
-import org.example.parser.Parser;
-import org.example.tokenizer.Tokenizer;
-
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-
 /*
     THE MOST FUNDAMENTAL THING TO ALWAYS REMEMBER is to ALWAYS provide the precompiled sequence of characters to the
     parser. In Java escape character/sequences are converted by the compiler at compile time to their corresponding
@@ -54,44 +46,6 @@ import java.nio.file.Path;
     U+1F600(😀). In our byte array we process \uD83D, \uDE00, determine high/low, and combine them.
  */
 public class Main {
-    public static void main(String[] args) throws IOException {
-        // "\"A\\uD83D\\uDE00Bé\"" utf-8 values
-        byte[] bytes = {34, 65, 92, 117, 68, 56, 51, 68, 92, 117, 68, 56, 51, 68, 66, -61, -87, 34};
-        Decoder decoder = new Decoder();
-        String jsonText = decoder.decode(bytes);
-        jsonText = "{  \"key\" : \"value\", \"key1\" : \"value\" }";
-        // toDo: for according to the string below how it is still valid and how we successfully we deal with all the whitespace added
-        jsonText = """
-        {
-            "Image": {
-                "Width":  800,
-                "Height": 600,
-                "Title":  "View from 15th Floor",
-                "Thumbnail": {
-                    "Url":    "http://www.example.com/image/481989943",                                         
-                    "Height": 125,
-                    "Width":  100
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                },
-                "Animated" : false,
-                "IDs": [116, 943, 234, 38793]
-              }
-          }""";
-        jsonText = "{\"xd\": 1}";
-        jsonText = Files.readString(Path.of("src/main/java/org/example/test.json"));
-        System.out.println(jsonText.substring(5380, 5500));
-        Tokenizer tokenizer = new Tokenizer(jsonText.toCharArray());
-
-        Parser parser = new Parser(tokenizer);
-
-        parser.parse();
-        System.out.println();
+    public static void main(String[] args) {
     }
 }

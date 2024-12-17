@@ -1,8 +1,8 @@
 package org.example.tokenizer;
 
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Deque;
+import java.util.LinkedList;
 import java.util.List;
 
 import org.example.exception.UnexpectedCharacterException;
@@ -31,20 +31,37 @@ public final class Tokenizer {
 
        This way, we can show error messages that accurately reflect the parser's expectations at the point where the
        token began, rather than where the tokenizer finally failed.
+
+       Note: To handle the above cases we would wrap the call to nextToken() in a try/catch block and throw our Malformed
+       structure exception. I had this logic in this commit: 1d6e0de4fcbab3368ebaaeb763b0b2575b7d7ef2. I ended up doing
+       it only for the cases of trailing characters.
     */
     private int initialPosition;
     private List<TokenizerToken> tokens;
-    // https://www.baeldung.com/java-deque-vs-stack
+    /*
+        https://www.baeldung.com/java-deque-vs-stack
+
+        The use of stack helps us when tokenizing numbers like 2, 3] 3}. The characters ',', ']' and '}' are only allowed
+        after a number when there is an array or an object. Look at tokenizeNumberHelper()
+     */
     private Deque<Character> stack;
 
     public Tokenizer(char[] buffer) {
         this.buffer = buffer;
-        this.tokens = new ArrayList<>();
+        /*
+            Why do we use a LinkedList instead of an ArrayList?
+
+            LinkedLists have the problem with caching as we know, but we only iterate though the list once when we navigate
+            Adding tokens to the list is efficient because we never have to resize
+            ArrayList may require resizing and copying to a larger array as it grows, which can be inefficient for a
+            large number of tokens
+         */
+        this.tokens = new LinkedList<>();
         stack = new ArrayDeque<>();
     }
 
     public TokenizerToken nextToken() {
-        if (this.position == this.buffer.length) {
+        if (this.position >= this.buffer.length) {
             return null;
         }
 
@@ -765,7 +782,15 @@ public final class Tokenizer {
         return this.initialPosition;
     }
 
+    public int getPosition() {
+        return this.position;
+    }
+
     public void advance() {
         this.position++;
+    }
+
+    public void reset(int position) {
+        this.position = position;
     }
 }

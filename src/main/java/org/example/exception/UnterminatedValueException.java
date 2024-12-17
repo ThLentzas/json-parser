@@ -1,6 +1,6 @@
 package org.example.exception;
 
-public class UnterminatedValueException extends TokenizerException {
+public class UnterminatedValueException extends LexicalException {
 
     public UnterminatedValueException() {
         super();
