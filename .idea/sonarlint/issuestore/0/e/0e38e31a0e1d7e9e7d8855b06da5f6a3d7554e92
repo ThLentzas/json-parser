@@ -1,17 +1,11 @@
 
-Ÿ
-java:S1192’"VDefine a constant instead of duplicating this literal "Unrecognized token: '" 8 times.(Ø¡œĞúÿÿÿÿ8¥Å³„½2J$6d412345-e185-43e0-83f6-88a4ff091466
-¨
-java:S1192”"_Define a constant instead of duplicating this literal "'. Expected a valid JSON value" 8 times.(²ÿÀÁùÿÿÿÿ8¥Å³„½2J$dce0b7e0-0037-43f3-8ee8-17fadfbbbd83
+š
+java:S1192¾"VDefine a constant instead of duplicating this literal "Unrecognized token: '" 6 times.(îÛğ¢8¤å™®¿2J$8cf925ff-7aec-4e70-8a7d-9b844bcf391d
+£
+java:S1192·"ZDefine a constant instead of duplicating this literal ". Unexpected character: '" 3 times.(âÈúÿÿÿÿ8¤å™®¿2J$ba091a7c-4375-44d2-8ee8-891cadc17dd9
+£
+java:S1192¾"_Define a constant instead of duplicating this literal "'. Expected a valid JSON value" 6 times.(îÛğ¢8¤å™®¿2J$019ffabb-7eab-4727-acfc-002e3abbe4af
 
-java:S1192s"LDefine a constant instead of duplicating this literal "Position: " 16 times.(ù„Åê8¥Å³„½2J$2380417e-0570-4808-a802-d8fe61eb0caa
-”
-java:S1301"KReplace this "switch" statement by "if" statements to increase readability.(Ëó‹•úÿÿÿÿ8¦Å³„½2J$8126ce0e-5e68-48f0-a8b6-17989aeee736
-{
-java:S1135…"2Complete the task associated to this TODO comment.(¶¬Ñ¹üÿÿÿÿ8…â™…½2J$faa8adc5-d804-48a6-8b4b-e85cfb957ced
-–
-java:S3776×"RRefactor this method to reduce its Cognitive Complexity from 23 to the 15 allowed.(¾¨¡8ñÅ³„½2J$ac820ea3-53e7-4c1c-a157-aa28c2bb6558
-{
-java:S1135Í"2Complete the task associated to this TODO comment.(ÔäºÉúÿÿÿÿ8òÅ³„½2J$308514f3-08fb-4ffe-8846-d2359adfd653
+java:S1192t"LDefine a constant instead of duplicating this literal "Position: " 21 times.(ù„Åê8¤å™®¿2J$7c703273-ae46-4fdb-8da8-aa5ed93a3efc
 
-java:S1764½"KCorrect one of the identical sub-expressions on both sides of operator "||"(É‚ò8øÅ³„½2J$8a7483c0-0f18-4276-bf44-fe87a7496d18
+java:S1764ì"KCorrect one of the identical sub-expressions on both sides of operator "||"(É‚ò8íå™®¿2J$3671f3c7-7512-49a7-9683-cff0655375de

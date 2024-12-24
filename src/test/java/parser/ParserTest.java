@@ -45,20 +45,11 @@ class ParserTest {
                 .withMessage("Position: 0. Unterminated value. Expected: ']' for Array");
     }
 
-    @Test
-    void shouldThrowMalformedStructureExceptionExceptionForUnterminatedNonEmptyArray() {
-        Tokenizer tokenizer = new Tokenizer("[116, 943, 234, 38793".toCharArray());
-        Parser parser = new Parser(tokenizer);
-
-        assertThatExceptionOfType(MalformedStructureException.class).isThrownBy(parser::parse)
-                .withMessage("Position: 20. Unterminated value. Expected: ']' for Array");
-    }
-
     /*
         We have a recursive call which returns after processing the empty array and then for the initial parseArray()
         we try to look for the next token which is null
 
-        !!! This test is the same as the above in the end what is inside the array does not change the case we are testing
+        !!! This test is the same in the end, what is inside the array does not change the case we are testing
         @Test
         void shouldThrowMalformedStructureExceptionExceptionForUnterminatedNestedArray() {
             Tokenizer tokenizer = new Tokenizer("[[]".toCharArray());
@@ -68,23 +59,32 @@ class ParserTest {
                     .withMessage("Position: 2. Unterminated value. Expected: ']' for Array");
         }
      */
-
     @Test
-    void shouldThrowMalformedStructureExceptionForMismatchClosingBracketInArray() {
-        Tokenizer tokenizer = new Tokenizer("[2, 1, 5}".toCharArray());
+    void shouldThrowMalformedStructureExceptionExceptionForUnterminatedNonEmptyArray() {
+        Tokenizer tokenizer = new Tokenizer("[116, 943, 234, 38793".toCharArray());
         Parser parser = new Parser(tokenizer);
 
         assertThatExceptionOfType(MalformedStructureException.class).isThrownBy(parser::parse)
-                .withMessage("Position: 8. Unexpected character: '}'. Expected: ']' for Array");
+                .withMessage("Position: 20. Unterminated value. Expected: ']' for Array");
     }
 
     @Test
-    void shouldThrowMalformedStructureExceptionForUnexpectedCommaInArray() {
-        Tokenizer tokenizer = new Tokenizer("[,]".toCharArray());
+    void shouldThrowMalformedStructureExceptionForUnexpectedEndOfArrayAfterComma() {
+        Tokenizer tokenizer = new Tokenizer("[1,".toCharArray());
         Parser parser = new Parser(tokenizer);
 
         assertThatExceptionOfType(MalformedStructureException.class).isThrownBy(parser::parse)
-                .withMessage("Position: 1. Unexpected character: ',' Expected JSON value");
+                .withMessage("Position: 2. Unexpected end of array. Expected a valid JSON value after comma");
+    }
+
+
+    @Test
+    void shouldThrowUnrecognizedTokenExceptionForMismatchClosingBracketInArray() {
+        Tokenizer tokenizer = new Tokenizer("[2, 1, 5!".toCharArray());
+        Parser parser = new Parser(tokenizer);
+
+        assertThatExceptionOfType(UnrecognizedTokenException.class).isThrownBy(parser::parse)
+                .withMessage("Position: 8. Unrecognized token: '!'. Expected: a valid JSON value");
     }
 
     // trailing characters, invalid and valid token. The logic is the same for both arrays and objects, so we don't have
@@ -107,7 +107,6 @@ class ParserTest {
                 .withMessage("Position: 2. Unexpected character: '1'");
     }
 
-    // toDo: test dynamic type arrays like [123, []] to throw exception for typed accessor methods
     @Test
     void shouldMalformedStructureExceptionForMissingCommaBetweenArrayValues() {
         Tokenizer tokenizer = new Tokenizer("[116 943]".toCharArray());
@@ -117,13 +116,25 @@ class ParserTest {
                 .withMessage("Position: 5. Unexpected character: '9'. Expected: comma to separate Array values");
     }
 
+    // We expect a value and we get an invalid token, tokenizer throws
     @Test
-    void shouldThrowMalformedStructureExceptionForInvalidArrayValue() {
+    void shouldThrowUnrecognizedTokenExceptionForInvalidArrayValue() {
         Tokenizer tokenizer = new Tokenizer("[']".toCharArray());
         Parser parser = new Parser(tokenizer);
 
         assertThatExceptionOfType(UnrecognizedTokenException.class).isThrownBy(parser::parse)
                 .withMessage("Position: 1. Unrecognized token: '''. Expected: a valid JSON value");
+    }
+
+    // We expect a value, and we get a valid token, but it is incorrect structurally. parseValue() throws
+    // comma is a recognized token
+    @Test
+    void shouldThrowMalformedStructureExceptionForUnexpectedCommaInArray() {
+        Tokenizer tokenizer = new Tokenizer("[,]".toCharArray());
+        Parser parser = new Parser(tokenizer);
+
+        assertThatExceptionOfType(MalformedStructureException.class).isThrownBy(parser::parse)
+                .withMessage("Position: 1. Unexpected character: ','. Expected a valid JSON value");
     }
 
     @Test
@@ -201,6 +212,16 @@ class ParserTest {
                 .withMessage("Position: 8. Unexpected character: '\"'. Expected: ':' to separate name-value");
     }
 
+    @Test
+    void shouldThrowMalformedStructureExceptionForUnexpectedTokenInObject() {
+        Tokenizer tokenizer = new Tokenizer("{\"key\":\"value\" 123}".toCharArray());
+        Parser parser = new Parser(tokenizer);
+
+        assertThatExceptionOfType(MalformedStructureException.class).isThrownBy(parser::parse)
+                .withMessage("Position: 15. Unexpected character: '1'. Expected: '}' or ',' to separate fields");
+    }
+
+    // Control characters here can be used because they are not part of a Json String. Read more: tokenizeString()
     @Test
     void shouldIgnoreInsignificantWhitespacesBeforeAndAfterStructuralObjectCharacters() {
         String jsonText = "{ \"foo\" : \t\"bar\" \t \r \n }";

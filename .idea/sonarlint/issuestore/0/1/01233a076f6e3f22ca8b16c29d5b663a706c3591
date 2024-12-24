@@ -1,0 +1,15 @@
+
+}
+java:S2201I"5The return value of "toBigIntegerExact" must be used.(Ñø·¶ıÿÿÿÿ8Ğ„«Ù¾2J$4bfa041b-4368-48e0-8203-768a4947c74b
+š
+java:S3776s"RRefactor this method to reduce its Cognitive Complexity from 20 to the 15 allowed.(×Õé¡üÿÿÿÿ8Ñ„«Ù¾2J$6652bb63-92d4-4673-80c7-2b2f3f2a7f38
+u
+java:S1135P"2Complete the task associated to this TODO comment.(õÎâë8Ñ„«Ù¾2J$bfe48e3f-3ab2-4633-903d-c7eff9f1e31d
+q
+java:S11444".Remove this unused private "isInteger" method.(Ù€ëÊ8Ó„«Ù¾2J$f611090b-bc93-4c7a-8f1f-ef7474b0a708
+u
+java:S1144:"-Remove this unused private "isDouble" method.(¨·ïÏúÿÿÿÿ8Ó„«Ù¾2J$1800185c-b183-409a-9181-af73a5fd637e
+n
+java:S1144A"+Remove this unused private "isLong" method.(±˜Ê8Ó„«Ù¾2J$a36ace40-1baa-4ff1-85de-78c6cab8d5a4
+t
+java:S1144G"1Remove this unused private "isBigInteger" method.(äƒîÔ8Ó„«Ù¾2J$e7d8c86d-87b1-4b8b-a86f-401b81ab177b

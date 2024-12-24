@@ -3,6 +3,14 @@ package org.example.parser;
 import org.example.exception.DuplicateObjectNameException;
 import org.example.exception.MalformedStructureException;
 import org.example.exception.LexicalException;
+import org.example.exception.UnexpectedTokenException;
+import org.example.node.ArrayNode;
+import org.example.node.BooleanNode;
+import org.example.node.Node;
+import org.example.node.NullNode;
+import org.example.node.NumberNode;
+import org.example.node.ObjectNode;
+import org.example.node.StringNode;
 import org.example.tokenizer.Tokenizer;
 import org.example.tokenizer.TokenizerToken;
 import org.example.tokenizer.TokenizerTokenType;
@@ -21,14 +29,14 @@ import java.util.Set;
         is simply not enough.
  */
 public final class Parser {
-    private List<ParserToken> tokens;
-    private Tokenizer tokenizer;
+    private final List<ParserToken> tokens;
+    private final Tokenizer tokenizer;
     private int position;
     /*
         The use of stack helps us to keep track of trailing characters. e.g. "[[]]" ']' is valid after the 1st ']' because
         there is nesting while the 2nd ']' in "[]]" is an invalid trailing character. Look at assertNoTrailingCharacters
      */
-    private Deque<Character> stack;
+    private final Deque<Character> stack;
     private boolean isKey;
 
     public Parser(Tokenizer tokenizer) {
@@ -45,9 +53,32 @@ public final class Parser {
         this.stack = new ArrayDeque<>();
     }
 
-    public void parse() {
+    public Node parse() {
         TokenizerToken token = this.tokenizer.nextToken();
         parseValue(token);
+
+        switch (this.tokens.get(0).getType()) {
+            case OBJECT_START -> {
+                return new ObjectNode(this.tokens, this.tokenizer.getBuffer(), null);
+            }
+            case ARRAY_START -> {
+                return new ArrayNode(this.tokens, this.tokenizer.getBuffer(), null);
+            }
+            case NUMBER -> {
+                return new NumberNode(this.tokens, this.tokenizer.getBuffer(), null);
+            }
+            case STRING -> {
+                return new StringNode(this.tokens, this.tokenizer.getBuffer(), null);
+            }
+            case BOOLEAN -> {
+                return new BooleanNode(this.tokens, this.tokenizer.getBuffer(), null);
+            }
+            case NULL -> {
+                return new NullNode(this.tokens, this.tokenizer.getBuffer(), null);
+            }
+            // This only happens if the 1st token of the Node is not a valid json value which means there is a problem on our part
+            default -> throw new UnexpectedTokenException("Unexpected token type: " + this.tokens.get(0).getType());
+        }
     }
 
     /*
@@ -78,8 +109,13 @@ public final class Parser {
         nextToken = this.tokenizer.nextToken();
         while (nextToken != null && nextToken.getType().equals(TokenizerTokenType.COMMA)) {
             this.tokens.add(new ParserToken(nextToken.getStartIndex(), nextToken.getEndIndex(), ParserTokenType.VALUE_SEPARATOR));
+            int tmpPosition = nextToken.getStartIndex();
             this.tokenizer.advance();
             nextToken = this.tokenizer.nextToken();
+            // [1,
+            if (nextToken == null) {
+                throw new MalformedStructureException("Position: " + tmpPosition + ". Unexpected end of array. Expected a valid JSON value after comma");
+            }
             parseValue(nextToken);
             nextToken = this.tokenizer.nextToken();
         }
@@ -92,11 +128,7 @@ public final class Parser {
         // Case 1: Some value -> we were expecting comma
         // Case 2: Anything else -> we were expecting ']' to terminate the array
         if (!nextToken.getType().equals(TokenizerTokenType.RIGHT_SQUARE_BRACKET)) {
-            if (isValue(nextToken.getType())) {
-                throw new MalformedStructureException(buildErrorMessage(nextToken, "Expected: comma to separate Array values"));
-            } else {
-                throw new MalformedStructureException(buildErrorMessage(nextToken, "Expected: ']' for Array"));
-            }
+            throw new MalformedStructureException(buildErrorMessage(nextToken, "Expected: comma to separate Array values"));
         }
         assertNoTrailingCharacters(nextToken, ParserTokenType.ARRAY_END);
     }
@@ -150,7 +182,7 @@ public final class Parser {
             }
 
             if (!nextToken.getType().equals(TokenizerTokenType.COMMA) && !nextToken.getType().equals(TokenizerTokenType.RIGHT_CURLY_BRACKET)) {
-                throw new MalformedStructureException(buildErrorMessage(nextToken, "Expected: '}' for object"));
+                throw new MalformedStructureException(buildErrorMessage(nextToken, "Expected: '}' or ',' to separate fields"));
             }
 
             if (nextToken.getType().equals(TokenizerTokenType.COMMA)) {
@@ -213,7 +245,7 @@ public final class Parser {
             case LEFT_CURLY_BRACKET -> parseObject(token);
             case LEFT_SQUARE_BRACKET -> parserArray(token);
             default ->
-                    throw new MalformedStructureException("Position: " + token.getStartIndex() + ". Unexpected character: '" + String.valueOf(this.tokenizer.getBuffer(), token.getStartIndex(), token.getEndIndex() - token.getStartIndex() + 1) + "' Expected JSON value");
+                    throw new MalformedStructureException("Position: " + token.getStartIndex() + ". Unexpected character: '" + String.valueOf(this.tokenizer.getBuffer(), token.getStartIndex(), token.getEndIndex() - token.getStartIndex() + 1) + "'. Expected a valid JSON value");
         }
         this.tokenizer.advance();
     }

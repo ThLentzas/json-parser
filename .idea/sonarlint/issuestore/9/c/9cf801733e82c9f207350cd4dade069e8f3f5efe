@@ -1,9 +1,9 @@
 
- 
-java:S1192E"XDefine a constant instead of duplicating this literal "Expected: ']' for Array" 3 times.(§Æû‹ıÿÿÿÿ8°§Ä“½2J$8ceb33c0-7d8f-48f6-9061-7b2e54ca662b
-
-java:S1192Ø"ZDefine a constant instead of duplicating this literal ". Unexpected character: '" 4 times.(û·¨8°§Ä“½2J$e2a61afe-225a-4063-8733-f9697b05d5e8
-
-java:S1192Ø"KDefine a constant instead of duplicating this literal "Position: " 5 times.(û·¨8°§Ä“½2J$c5ef6d8a-eec6-477c-9c42-99967d9692ab
+£
+java:S1192ø"ZDefine a constant instead of duplicating this literal ". Unexpected character: '" 4 times.(õÁŠ…øÿÿÿÿ8§ÈÇ£¿2J$d17f8ba9-f009-4e21-8b43-44d25563e2a2
+
+java:S1192u"KDefine a constant instead of duplicating this literal "Position: " 6 times.(ø©ê‹8§ÈÇ£¿2J$d824bbe9-a395-4c77-879d-ea686d2812a6
 n
-java:S1068",Remove this unused "position" private field.(•È?8Í§Ä“½2J$6d69a00e-34f7-48c1-992b-cb5215326313
+java:S1068"",Remove this unused "position" private field.(•È?8ÎÈÇ£¿2J$8ed80dbf-4067-4562-bcaa-5dbad7687ef9
+o
+java:S1144†",Remove this unused private "isValue" method.(–Íá8ÎÈÇ£¿2J$709ac91f-e480-42e5-b817-831e54dfbb96

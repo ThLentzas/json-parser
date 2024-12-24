@@ -25,8 +25,8 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
     The parser will map correctly the escape character/sequence.
 
     Same logic applies for this as well "\"A\\uD83D\\uDE00Bé\"". These 2 sequences are a surrogate pair. We escape the
-    backlash after A to treat the remaining characters as not part of a unicode escape sequence. The parser will read
-    the characters \uD83D and map them accordingly.
+    backlash after A to treat the remaining characters as part of a unicode escape sequence. The parser will read
+    the characters \uD83D and map them accordingly. This has to do with java
  */
 class TokenizerTest {
     /*
@@ -88,13 +88,31 @@ class TokenizerTest {
 
     @Test
     void shouldThrowUnexpectedCharacterExceptionForNumberWithLeadingZeros() {
-        Tokenizer tokenizer = new Tokenizer("001".toCharArray());
+        Tokenizer tokenizer = new Tokenizer("-01".toCharArray());
 
         assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::nextToken)
-                .withMessage("Position: 0. Leading zeros are not allowed");
+                .withMessage("Position: 1. Leading zeros are not allowed");
     }
 
     @Test
+    void shouldThrowUnexpectedCharacterExceptionForMultipleDecimalPoints() {
+        Tokenizer tokenizer = new Tokenizer("0.1.2".toCharArray());
+
+        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::nextToken)
+                .withMessage("Position: 3. Only one decimal point is allowed");
+    }
+
+    @Test
+    void shouldThrowUnexpectedCharacterExceptionWhenDecimalPointIsFoundAfterExponentialNotation() {
+        Tokenizer tokenizer = new Tokenizer("-12e5.3".toCharArray());
+
+        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::nextToken)
+                .withMessage("Position: 5. Decimal point is not allowed after exponential notation");
+    }
+
+    // The cases for the 3rd if in handleDecimalPoint
+    @ParameterizedTest
+    @ValueSource(strings = {"-12.", "-12.e5"})
     void shouldThrowUnexpectedCharacterExceptionWhenDecimalPointIsNotFollowedByDigit() {
         Tokenizer tokenizer = new Tokenizer("-12.e5".toCharArray());
 
@@ -102,24 +120,50 @@ class TokenizerTest {
                 .withMessage("Position: 3. Decimal point must be followed by a digit");
     }
 
+    @Test
+    void shouldThrowUnexpectedCharacterExceptionForMultipleExponentialNotations() {
+        Tokenizer tokenizer = new Tokenizer("1e2e3".toCharArray());
+
+        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::nextToken)
+                .withMessage("Position: 3. Only one exponential notation('e' or 'E') is allowed");
+    }
+
+    // 2nd if in the handleExponentialNotation
     @ParameterizedTest
-    @ValueSource(strings = {"-1.1e", "2436E+"})
-    void shouldThrowUnexpectedCharacterExceptionWhenExponentialNotationIsNotFollowedByDigit(String jsonText) {
+    @ValueSource(strings = {"1.1e", "246Ef"})
+    void shouldThrowUnexpectedCharacterExceptionWhenExponentialNotationIsNotFollowedByADigit(String jsonText) {
         Tokenizer tokenizer = new Tokenizer(jsonText.toCharArray());
 
         assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::nextToken)
-                .withMessage("Position: 4. Exponential notation must be followed by a digit");
+                .withMessage("Position: 3. Exponential notation must be followed by a digit");
+    }
+
+    @Test
+    void shouldThrowUnexpectedCharacterExceptionForSignNotFollowingExponentialNotation() {
+        Tokenizer tokenizer = new Tokenizer("12+3".toCharArray());
+
+        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::nextToken)
+                .withMessage("Position: 2. Sign ('+' or '-') is only allowed as part of exponential notation after 'e' or 'E'");
+    }
+
+    @Test
+    void shouldThrowUnexpectedCharacterExceptionForSignWithoutDigitAfterExponentialNotation() {
+        Tokenizer tokenizer = new Tokenizer("1e+".toCharArray());
+
+        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::nextToken)
+                .withMessage("Position: 2. Exponential notation must be followed by a digit");
     }
 
     // The following characters in this case are invalid at the top level but valid in an array or an object. The 2nd part
-    // is tested in the parser
+    // is tested in the parser. We can pass control characters directly here because we don't have a Json String but a
+    // Number instead. Read more in tokenizeString()
     @ParameterizedTest
     @ValueSource(strings = {"2a", "3,", "4]", "5}", "6 ", "7\n", "8\t", "9\r"})
     void shouldThrowUnexpectedCharacterExceptionForNumberFollowedByInvalidCharacter(String jsonText) {
         Tokenizer tokenizer = new Tokenizer(jsonText.toCharArray());
 
         assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::nextToken)
-                .withMessage("Position: 1. Unexpected character '" + jsonText.charAt(1) + "'");
+                .withMessage("Position: 1. Unexpected character: '" + jsonText.charAt(1) + "'");
     }
 
     @Test
@@ -156,7 +200,7 @@ class TokenizerTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"truef", "trfe", "tre", "falset", "falst", "fals", "nullf", "nulf", "nul"})
+    @ValueSource(strings = {"trfe", "tre", "falst", "fals", "nulf", "nul"})
     void shouldThrowUnrecognizedTokenExceptionWhenJsonTextIsInvalidForJsonBooleanAndNull(String jsonText) {
         Tokenizer tokenizer = new Tokenizer(jsonText.toCharArray());
         assertThatExceptionOfType(UnrecognizedTokenException.class).isThrownBy(tokenizer::nextToken)
@@ -173,6 +217,25 @@ class TokenizerTest {
                 .hasStartIndex(0)
                 .hasEndIndex(4)
                 .hasTokenType(TokenizerTokenType.STRING);
+    }
+
+    // The 1st test covers the case where we have more characters after a string. In the test below, the string is followed
+    // ']' a structural character which could be a valid in a case like ["abc"] but it is in the wrong context because
+    // currently we don't have an array
+    @Test
+    void shouldThrowUnrecognizedTokenExceptionForValidStringFollowedByNonStructuralCharacter() {
+        Tokenizer tokenizer = new Tokenizer("\"abc\"123".toCharArray());
+
+        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::nextToken)
+                .withMessage("Position: 5. Unexpected character: '1'");
+    }
+
+    @Test
+    void shouldThrowUnrecognizedTokenExceptionForValidStringFollowedByStructuralCharacter() {
+        Tokenizer tokenizer = new Tokenizer("\"abc\"]".toCharArray());
+
+        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::nextToken)
+                .withMessage("Position: 5. Unexpected character: ']'");
     }
 
     @Test

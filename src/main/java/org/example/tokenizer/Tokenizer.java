@@ -5,6 +5,7 @@ import java.util.Deque;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.example.exception.IllegalControlCharacterException;
 import org.example.exception.UnexpectedCharacterException;
 import org.example.exception.UnrecognizedTokenException;
 import org.example.exception.UnterminatedValueException;
@@ -37,14 +38,14 @@ public final class Tokenizer {
        it only for the cases of trailing characters.
     */
     private int initialPosition;
-    private List<TokenizerToken> tokens;
+    private final List<TokenizerToken> tokens;
     /*
         https://www.baeldung.com/java-deque-vs-stack
 
         The use of stack helps us when tokenizing numbers like 2, 3] 3}. The characters ',', ']' and '}' are only allowed
         after a number when there is an array or an object. Look at tokenizeNumberHelper()
      */
-    private Deque<Character> stack;
+    private final Deque<Character> stack;
 
     public Tokenizer(char[] buffer) {
         this.buffer = buffer;
@@ -130,7 +131,6 @@ public final class Tokenizer {
             }
             case ':' -> this.tokens.add(new TokenizerToken(this.position, this.position, TokenizerTokenType.COLON));
             case ',' -> this.tokens.add(new TokenizerToken(this.position, this.position, TokenizerTokenType.COMMA));
-            // toDo: upper bounds for numbers
             // signs, decimal point and exponential notation
             case '-', '+', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' -> {
                 tokenizeNumber();
@@ -159,17 +159,11 @@ public final class Tokenizer {
 
         -123.45E-6 and -123.45e-6 are the same number: −0.00012345 -> times 10 to the power of -6
         -123.45E+6, -123.45E6, -123.45e+6 and -123.45e6 are the same number: −123450000
-        Same logic applies for positive ones.
-
-        If we have something like "1E3" which is an integer we can not call Integer.parseInt() because parenInt() is
-        strictly for integer values, and the input string must represent a plain integer without any fractional
-        or scientific notation. We work with Double.
-
-        String text = "123.45e-6         ";
-        This is not considered a valid number because there are whitespaces that are not considered insignificant.
-        Insignificant whites spaces according to rfc are the ones before and/or after the 6 structural characters({}[],:)
+        Same logic applies for positive ones. When we encounter exponential notation it means take the number before
+        times 10 to the number after 12e50 is 12 * 10 ^ 50
 
         NaN and -+Infinity are not valid values for JSON Number according to rfc
+        Octal and Hex are not allowed as of RFC 8259
     */
     private void tokenizeNumber() {
         if (this.buffer[this.position] == '-') {
@@ -202,8 +196,6 @@ public final class Tokenizer {
         tokenizerNumberHelper();
     }
 
-    // toDo: precision
-
     /**
      * After either {@link #tokenizeNegative()} or {@link #tokenizePositive()} confirmed that the number has a valid
      * initial structure, this method verifies the remaining characters to ensure they adhere to the JSON Number
@@ -213,37 +205,46 @@ public final class Tokenizer {
      *                                      is not followed by a digit 3) We encountered an expected character for JSON Number
      */
     private void tokenizerNumberHelper() {
-        // Handle leading zeros e.g. 001
-        if (this.buffer[this.position] == '0' && this.position + 1 != this.buffer.length && this.buffer[this.position + 1] == '0') {
+        // Handle leading zeros e.g. -01
+        // Only characters allowed after 0
+        //  '.': 0.1
+        //  'e', 'E': 0e3, 0E3
+        // We want to handle all cases that are in the form 0x where x is a number. If we get 0y where y is any other
+        // character we would treat that character as Unrecognized token: 'y'
+        if (this.buffer[this.position] == '0'
+                && this.position + 1 != this.buffer.length
+                && this.buffer[this.position + 1] != '.'
+                && this.buffer[this.position + 1] != 'e'
+                && this.buffer[this.position + 1] != 'E'
+                && this.buffer[this.position + 1] >= '0'
+                && this.buffer[this.position + 1] <= '9') {
             throw new UnexpectedCharacterException("Position: " + this.position + ". Leading zeros are not allowed");
         }
 
         boolean endOfNumber = false;
+        boolean hasExponentialNotation = false;
+        boolean hasDecimalPoint = false;
         // until we encounter a character or traversed the entire array
         while (!endOfNumber && this.position < this.buffer.length) {
             switch (this.buffer[this.position]) {
                 // We can still encounter '-', '+' as part of the exponential notation
-                case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-', '+' -> this.position++;
+                case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' -> this.position++;
                 case '.' -> {
-                    /*
-                        After '.' only digits are valid(12.e5 is not valid) x. where x is any number is also invalid
-                        because there are not enough characters left
-                     */
-                    if (this.position + 1 == this.buffer.length || !(this.buffer[this.position + 1] >= '0' && this.buffer[this.position + 1] <= '9')) {
-                        throw new UnexpectedCharacterException("Position: " + this.position + ". Decimal point must be followed by a digit");
-                    }
+                    handleDecimalPoint(hasDecimalPoint, hasExponentialNotation);
                     this.position++;
+                    hasDecimalPoint = true;
                 }
                 case 'e', 'E' -> {
-                    // When e or E is the last character of the buffer including e-, e+, E-, E+  and are not followed by
-                    // a digit
-                    if (this.position + 1 == this.buffer.length
-                            || (this.position + 2 == this.buffer.length
-                            && (this.buffer[this.position + 1] == '+' || this.buffer[this.position + 1] == '-'))) {
-                        throw new UnexpectedCharacterException("Position: " + this.position + ". Exponential notation must be followed by a digit");
-                    }
+                    handleExponentialNotation(hasExponentialNotation);
+                    this.position++;
+                    hasExponentialNotation = true;
+                }
+
+                case '-', '+' -> {
+                    handleSign();
                     this.position++;
                 }
+
                 // We encountered an unexpected character
                 default -> endOfNumber = true;
             }
@@ -251,9 +252,11 @@ public final class Tokenizer {
 
         /*
             If endOfNumber is true, it means we encountered a number before the end of the input buffer. We need to
-            consider 1 valid case and everything else will be considered invalid. If the number is followed by any of
-            the following characters ',', ']', '}', ' ', '\n', '\r', '\t' and the stack that we keep track of the current
-            element is not empty,(we either have '[' or '{' as the top element in the stack) we consider them valid.
+            consider 1 valid case and everything else will be considered invalid. If the stack that we keep track of the
+            current element is not empty,(we either have '[' or '{' as the top element in the stack) we will let the call
+            to the corresponding method parseArray() or parseObject() determine if the next character is valid or not
+            It is explained below above the if condition. In any other case, including RFC whitespace characters is
+            considered invalid. 5\n is invalid
 
             e.g. 3, -> Valid as array value or as value in an object that has more keys, invalid at the top level
                  4] -> Valid in an array, invalid at the top level
@@ -267,17 +270,16 @@ public final class Tokenizer {
            valid
 
            Any other case is considered invalid. e.g. 3a
+
+           Why we need the condition: this.stack.isEmpty()?
+               When our stack is not empty we have either an array or an object, which means that we can provide a message
+               that reflects the context. For 2a: "Position: 1, Unexpected character: 'a'" is enough but for a case
+               like [3[4]]: "Position: 2, Unexpected character: '['" is not enough. What we do instead is we don't check
+               the next character, we tokenize it and when the logic of parseArray() expects after a value a comma and
+               gets ']' it will provide a more meaningful message. Similar for object
          */
-        if (endOfNumber) {
-            switch (this.buffer[this.position]) {
-                case ',', ']', '}', ' ', '\n', '\r', '\t' -> {
-                    if (stack.isEmpty()) {
-                        throw new UnexpectedCharacterException("Position: " + this.position + ". Unexpected character '" + this.buffer[this.position] + "'");
-                    }
-                }
-                default ->
-                        throw new UnexpectedCharacterException("Position: " + this.position + ". Unexpected character '" + this.buffer[this.position] + "'");
-            }
+        if (endOfNumber && this.stack.isEmpty()) {
+            checkForUnexpectedCharacter(this.position);
         }
         // At this point we either encountered an unexpected character or we reached the end of the array. In either case,
         // the end index of the number is the current - 1. The parser will move the index to the next token, either the
@@ -303,7 +305,36 @@ public final class Tokenizer {
         // Skip the opening quotation mark
         this.position++;
         while (this.position < this.buffer.length && this.buffer[this.position] != '"') {
-            // Check if the current character is a backslash ('\'), which indicates the start of a potential escape character/sequence.
+            /*
+                According to the spec for JSON String only(anywhere else can be used, for example as insignificant whitespaces
+                between structural characters, look at shouldIgnoreInsignificantWhitespacesBeforeAndAfterStructuralArrayCharacters() ParserTest):
+
+                All Unicode characters may be placed within the quotation marks, except for the characters that MUST be
+                escaped: quotation mark, reverse solidus, and the control characters (U+0000 through U+001F).
+
+                This means that this byte sequence is invalid [34, 10, 34] because the control character is passed as
+                raw byte, and it is unescaped but [34, 92, 110, 34] should be considered valid as a new line character
+
+                Invalid JSON:
+                    "Hello
+                    World"
+                The newline character (U+000A) is raw and unescaped, making the JSON invalid.
+
+                However, [34, 92, 110, 34] should be considered valid as the newline character is escaped:
+
+                Valid JSON:
+                "Hello\nWorld"
+                Here, the newline character is represented using its escape sequence `\n`.
+                REMEMBER as mentioned above main this is the raw json payload no matter the language
+
+                In our escape character logic, when we encounter a backslash(92) we look for the next character to be
+                a valid escape character. Not all control characters have a text representation. They can still be
+                represented using their Unicode escape sequence (e.g., `\u000A`).
+             */
+            if (this.buffer[this.position] < 0x20) {
+                throw new IllegalControlCharacterException("Position: " + this.position + ". Illegal control character. Control characters must be escaped");
+            }
+            // Start of a potential escape character/sequence.
             if (this.buffer[this.position] == '\\') {
                 handleEscapeCharacter();
             }
@@ -313,6 +344,18 @@ public final class Tokenizer {
         // We did not find closing quotation mark
         if (this.buffer.length == this.position) {
             throw new UnterminatedValueException("Position: " + this.position + ". Unterminated value for JSON String");
+        }
+        /*
+            Why we need the condition: this.stack.isEmpty()?
+
+            When our stack is not empty we have either an array or an object, which means that we can provide a message
+            that reflects the context. For "str"a: "Position: 5, Unexpected character: 'a'" is enough but for a case
+            like ["str"[4]]: "Position: 6, Unexpected character: '['" is not enough. What we do instead is we don't check
+            the next character, we tokenize it and when the logic of parseArray() expects after a value a comma and
+            gets ']' it will provide a more meaningful message. Similar for object
+         */
+        if (this.stack.isEmpty()) {
+            checkForUnexpectedCharacter(this.position + 1);
         }
     }
 
@@ -608,7 +651,8 @@ public final class Tokenizer {
             return;
         }
         /*
-            This is the case where we had the previous high surrogate, but it was not followed by a unicode sequence.
+            This is the case where we had the previous high surrogate, but it was not followed by a unicode sequence or
+            they were not enough characters left to form a sequence.
             We simply convert the high surrogate to (�) as explained in detail handleUnicodeEscapeSequence() for the
             BMP/low surrogate character case including why we need to reset the position.
          */
@@ -655,95 +699,63 @@ public final class Tokenizer {
 
     private void tokenizeFalse() {
         if (this.position + 4 >= this.buffer.length) {
-            throw new UnrecognizedTokenException("Unrecognized token: '"
-                    + new String(this.buffer, this.position, this.buffer.length - this.position)
-                    + "'. Expected a valid JSON value");
+            throw new UnrecognizedTokenException("Unrecognized token: '" + new String(this.buffer, this.position, this.buffer.length - this.position) + "'. Expected a valid JSON value");
         }
 
         if (this.buffer[++this.position] != 'a'
                 || this.buffer[++this.position] != 'l'
                 || this.buffer[++this.position] != 's'
                 || this.buffer[++this.position] != 'e') {
-            throw new UnrecognizedTokenException("Unrecognized token: '"
-                    + new String(this.buffer, this.initialPosition, 5)
-                    + "'. Expected a valid JSON value");
+            throw new UnrecognizedTokenException("Unrecognized token: '" + new String(this.buffer, this.initialPosition, 5) + "'. Expected a valid JSON value");
         }
 
-        validateNextChar();
+        /*
+            Why we need the condition: this.stack.isEmpty()?
+               When our stack is not empty we have either an array or an object, which means that we can provide a message
+               that reflects the context. For falsea: "Position: 5, Unexpected character: 'a'" is enough but for a case
+               like [false[4]]: "Position: 6, Unexpected character: '['" is not enough. What we do instead is we don't check
+               the next character, we tokenize it and when the logic of parseArray() expects after a value a comma and
+               gets ']' it will provide a more meaningful message. Similar for object.
+               The same logic applies for true and null
+         */
+        if (this.stack.isEmpty()) {
+            checkForUnexpectedCharacter(this.position + 1);
+        }
     }
 
     private void tokenizeTrue() {
         if (this.position + 3 >= this.buffer.length) {
-            throw new UnrecognizedTokenException("Unrecognized token: '"
-                    + new String(this.buffer, this.position, this.buffer.length - this.position)
-                    + "'. Expected a valid JSON value");
+            throw new UnrecognizedTokenException("Unrecognized token: '" + new String(this.buffer, this.position, this.buffer.length - this.position) + "'. Expected a valid JSON value");
         }
 
         if (this.buffer[++this.position] != 'r'
                 || this.buffer[++this.position] != 'u'
                 || this.buffer[++this.position] != 'e') {
-            throw new UnrecognizedTokenException("Unrecognized token: '"
-                    + new String(this.buffer, this.initialPosition, 4)
-                    + "'. Expected a valid JSON value");
+            throw new UnrecognizedTokenException("Unrecognized token: '" + new String(this.buffer, this.initialPosition, 4) + "'. Expected a valid JSON value");
         }
-        validateNextChar();
+        if (this.stack.isEmpty()) {
+            checkForUnexpectedCharacter(this.position + 1);
+        }
     }
 
     private void tokenizeNull() {
         if (this.position + 3 >= this.buffer.length) {
-            throw new UnrecognizedTokenException("Unrecognized token: '"
-                    + new String(this.buffer, this.position, this.buffer.length - this.position)
-                    + "'. Expected a valid JSON value");
+            throw new UnrecognizedTokenException("Unrecognized token: '" + new String(this.buffer, this.position, this.buffer.length - this.position) + "'. Expected a valid JSON value");
         }
 
         if (this.buffer[++this.position] != 'u'
                 || this.buffer[++this.position] != 'l'
                 || this.buffer[++this.position] != 'l') {
-            throw new UnrecognizedTokenException("Unrecognized token: '"
-                    + new String(this.buffer, this.initialPosition, 4)
-                    + "'. Expected a valid JSON value");
+            throw new UnrecognizedTokenException("Unrecognized token: '" + new String(this.buffer, this.initialPosition, 4) + "'. Expected a valid JSON value");
         }
-        validateNextChar();
+        if (this.stack.isEmpty()) {
+            checkForUnexpectedCharacter(this.position + 1);
+        }
     }
 
-    /*
-        The following logic applies to false, true and null
-
-        If there is at least 1 more character we need to verify that is considered valid. Similar logic that we applied
-        to tokenizeNumberHelper()
-            1. Array value: [false, ....]
-            2. Last value of the array: [....false]
-            3. false as value in an array or object followed by RFC whitespaces e.g. [..false \t \r \n, ...] is considered
-            valid because the whitespace characters are after false but before ',' which is considered a structural
-            character and whitespace characters are allowed before and after
-            4. Value of an object: { "key" : false}
-
-        In any of those cases if our stack is empty we don't have any nesting and we throw. e.g. false, false], false\t
-
-        First we will check for cases that exclude the above characters. For any of those cases, no matter if it is part
-        of an Array or an Object they are considered invalid. e.g. truef.
-
-        For the rest of the cases where we have something like false] we consider it valid only if there is nesting
-    */
-    private void validateNextChar() {
-        if (this.position + 1 < this.buffer.length
-                && this.buffer[this.position + 1] != ','
-                && this.buffer[this.position + 1] != ']'
-                && this.buffer[this.position + 1] != '}'
-                && !isRFCWhiteSpace(this.buffer[this.position + 1])) {
-            throw new UnrecognizedTokenException("Unrecognized token: '"
-                    + new String(this.buffer, initialPosition, this.position + 2)
-                    + "'. Expected a valid JSON value");
-        }
-
-        if (this.position + 1 < this.buffer.length && ((this.buffer[this.position + 1] == ','
-                || this.buffer[this.position + 1] == ']'
-                || this.buffer[this.position + 1] == '}'
-                || isRFCWhiteSpace(this.buffer[this.position + 1]))
-                && this.stack.isEmpty())) {
-            throw new UnrecognizedTokenException("Unrecognized token: '"
-                    + this.buffer[this.position + 1]
-                    + "'. Expected a valid JSON value");
+    private void checkForUnexpectedCharacter(int charPosition) {
+        if (charPosition < this.buffer.length) {
+            throw new UnexpectedCharacterException("Position: " + charPosition + ". Unexpected character: '" + this.buffer[charPosition] + "'");
         }
     }
 
@@ -770,8 +782,54 @@ public final class Tokenizer {
         }
     }
 
+    private void handleDecimalPoint(boolean hasDecimalPoint, boolean hasExponentialNotation) {
+        // 0.1.2 is not allowed
+        if (hasDecimalPoint) {
+            throw new UnexpectedCharacterException("Position: " + this.position + ". Only one decimal point is allowed");
+        }
+
+        // Decimal point is not allowed after 'e' or 'E'
+        if (hasExponentialNotation) {
+            throw new UnexpectedCharacterException("Position: " + this.position + ". Decimal point is not allowed after exponential notation");
+        }
+        /*
+            After '.' only digits are valid(12.e5 is not valid) x. where x is any number is also invalid because there
+            are not enough characters left
+        */
+        if (this.position + 1 == this.buffer.length || !(this.buffer[this.position + 1] >= '0' && this.buffer[this.position + 1] <= '9')) {
+            throw new UnexpectedCharacterException("Position: " + this.position + ". Decimal point must be followed by a digit");
+        }
+    }
+
+    private void handleExponentialNotation(boolean hasExponentialNotation) {
+        // 1e2e3 not allowed
+        if (hasExponentialNotation) {
+            throw new UnexpectedCharacterException("Position: " + this.position + ". Only one exponential notation('e' or 'E') is allowed");
+        }
+        // When e or E is the last character of the buffer or the next character is neither a digit nor a sign
+        if (this.position + 1 == this.buffer.length
+                || !(this.buffer[this.position + 1] >= '0'
+                && this.buffer[this.position + 1] <= '9')
+                && this.buffer[this.position + 1] != '-'
+                && this.buffer[this.position + 1] != '+') {
+            throw new UnexpectedCharacterException("Position: " + this.position + ". Exponential notation must be followed by a digit");
+        }
+    }
+
+    private void handleSign() {
+        // 12+3 not allowed
+        if (this.buffer[this.position - 1] != 'E' && this.buffer[this.position - 1] != 'e') {
+            throw new UnexpectedCharacterException("Position: " + this.position + ". Sign ('+' or '-') is only allowed as part of exponential notation after 'e' or 'E'");
+        }
+
+        //1e+ not allowed, 1e+q not allowed
+        if (this.position + 1 == this.buffer.length || !(this.buffer[this.position + 1] >= '0' && this.buffer[this.position + 1] <= '9')) {
+            throw new UnexpectedCharacterException("Position: " + this.position + ". Exponential notation must be followed by a digit");
+        }
+    }
+
     private boolean isRFCWhiteSpace(char c) {
-        return c == ' ' || c == '\n' || c == '\t' || c == '\r';
+        return c == ' ' || c == '\t' || c == '\n' || c == '\r';
     }
 
     public char[] getBuffer() {
@@ -782,15 +840,8 @@ public final class Tokenizer {
         return this.initialPosition;
     }
 
-    public int getPosition() {
-        return this.position;
-    }
-
     public void advance() {
         this.position++;
     }
 
-    public void reset(int position) {
-        this.position = position;
-    }
 }
