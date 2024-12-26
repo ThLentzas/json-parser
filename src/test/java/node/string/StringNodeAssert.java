@@ -6,7 +6,6 @@ import org.example.node.StringNode;
 import org.example.parser.ParserTokenType;
 
 import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.util.List;
 
 class StringNodeAssert extends AbstractAssert<StringNodeAssert, StringNode> {
@@ -68,8 +67,8 @@ class StringNodeAssert extends AbstractAssert<StringNodeAssert, StringNode> {
     StringNodeAssert hasDoubleValue(double value) {
         isNotNull();
 
-        double actualValue = actual.doubleValue();
-        if(actualValue != value) {
+        BigDecimal actualValue = actual.doubleValue();
+        if(actualValue.compareTo(new BigDecimal(String.valueOf(value))) != 0) {
             failWithMessage("Expected value to be <%s> but was <%s>", value, actualValue);
         }
         return this;
@@ -80,26 +79,6 @@ class StringNodeAssert extends AbstractAssert<StringNodeAssert, StringNode> {
 
         long actualValue = actual.longValue();
         if(actualValue != value) {
-            failWithMessage("Expected value to be <%s> but was <%s>", value, actualValue);
-        }
-        return this;
-    }
-
-    StringNodeAssert hasBigDecimalValue(BigDecimal value) {
-        isNotNull();
-
-        BigDecimal actualValue = actual.bigDecimalValue();
-        if(actualValue.compareTo(value) != 0) {
-            failWithMessage("Expected value to be <%s> but was <%s>", value, actualValue);
-        }
-        return this;
-    }
-
-    StringNodeAssert hasBigIntegerValue(BigInteger value) {
-        isNotNull();
-
-        BigInteger actualValue = actual.bigIntegerValue();
-        if(actualValue.compareTo(value) != 0) {
             failWithMessage("Expected value to be <%s> but was <%s>", value, actualValue);
         }
         return this;

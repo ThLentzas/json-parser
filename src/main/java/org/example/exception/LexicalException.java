@@ -1,6 +1,7 @@
 package org.example.exception;
 
 public class LexicalException extends RuntimeException {
+
     public LexicalException() {
         super();
     }

@@ -137,6 +137,7 @@ class ParserTest {
                 .withMessage("Position: 1. Unexpected character: ','. Expected a valid JSON value");
     }
 
+    // We can pass control characters like '\t', '\n' and '\r' as raw bytes. Read tokenizeString()
     @Test
     void shouldIgnoreInsignificantWhitespacesBeforeAndAfterStructuralArrayCharacters() {
         Tokenizer tokenizer = new Tokenizer("[\"foo\" \t \n    ]\r".toCharArray());
@@ -169,7 +170,7 @@ class ParserTest {
         Parser parser = new Parser(tokenizer);
 
         assertThatExceptionOfType(MalformedStructureException.class).isThrownBy(parser::parse)
-                .withMessage("Position: 16. Unterminated value. Expected: double-quoted value for object name");
+                .withMessage("Position: 16. Unexpected end of object. Expected: double-quoted value for object name");
     }
 
     @Test
@@ -261,7 +262,7 @@ class ParserTest {
         Parser parser = new Parser(tokenizer);
 
         assertThatExceptionOfType(DuplicateObjectNameException.class).isThrownBy(parser::parse)
-                .withMessage("Duplicate object name: foo");
+                .withMessage("Duplicate object name: 'foo'");
     }
 
     // Json Example by the RFC spec

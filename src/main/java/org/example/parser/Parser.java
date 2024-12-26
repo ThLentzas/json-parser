@@ -1,8 +1,9 @@
 package org.example.parser;
 
 import org.example.exception.DuplicateObjectNameException;
-import org.example.exception.MalformedStructureException;
 import org.example.exception.LexicalException;
+import org.example.exception.MalformedStructureException;
+import org.example.exception.MaxNestingLevelExceededException;
 import org.example.exception.UnexpectedTokenException;
 import org.example.node.ArrayNode;
 import org.example.node.BooleanNode;
@@ -31,10 +32,12 @@ import java.util.Set;
 public final class Parser {
     private final List<ParserToken> tokens;
     private final Tokenizer tokenizer;
-    private int position;
+    private int depth;
+    private static final int MAX_NESTING_DEPTH = 256;
     /*
-        The use of stack helps us to keep track of trailing characters. e.g. "[[]]" ']' is valid after the 1st ']' because
-        there is nesting while the 2nd ']' in "[]]" is an invalid trailing character. Look at assertNoTrailingCharacters
+        The use of stack helps us to keep track of trailing characters and nesting. e.g. "[[]]" ']' is valid after the 1st ']'
+        because there is nesting while the 2nd ']' in "[]]" is an invalid trailing character.
+        Look at assertNoTrailingCharacters()
      */
     private final Deque<Character> stack;
     private boolean isKey;
@@ -54,6 +57,7 @@ public final class Parser {
     }
 
     public Node parse() {
+        // The 1st token can't be null because if it was that would mean we have an empty input array which we already checked in the decoder
         TokenizerToken token = this.tokenizer.nextToken();
         parseValue(token);
 
@@ -91,7 +95,11 @@ public final class Parser {
      */
     private void parserArray(TokenizerToken token) {
         this.tokens.add(new ParserToken(token.getStartIndex(), token.getEndIndex(), ParserTokenType.ARRAY_START));
+        if(this.depth > 256) {
+            throw new MaxNestingLevelExceededException("Maximum nesting depth exceeded: " + MAX_NESTING_DEPTH);
+        }
         this.stack.push('[');
+        this.depth++;
         this.tokenizer.advance();
         TokenizerToken nextToken;
 
@@ -109,12 +117,11 @@ public final class Parser {
         nextToken = this.tokenizer.nextToken();
         while (nextToken != null && nextToken.getType().equals(TokenizerTokenType.COMMA)) {
             this.tokens.add(new ParserToken(nextToken.getStartIndex(), nextToken.getEndIndex(), ParserTokenType.VALUE_SEPARATOR));
-            int tmpPosition = nextToken.getStartIndex();
             this.tokenizer.advance();
             nextToken = this.tokenizer.nextToken();
             // [1,
             if (nextToken == null) {
-                throw new MalformedStructureException("Position: " + tmpPosition + ". Unexpected end of array. Expected a valid JSON value after comma");
+                throw new MalformedStructureException("Position: " + (this.tokenizer.getBuffer().length - 1) + ". Unexpected end of array. Expected a valid JSON value after comma");
             }
             parseValue(nextToken);
             nextToken = this.tokenizer.nextToken();
@@ -124,9 +131,6 @@ public final class Parser {
             throw new MalformedStructureException(buildErrorMessage("Expected: ']' for Array"));
         }
 
-        // We need a way to separate what was the type of token that was not comma and exited the loop
-        // Case 1: Some value -> we were expecting comma
-        // Case 2: Anything else -> we were expecting ']' to terminate the array
         if (!nextToken.getType().equals(TokenizerTokenType.RIGHT_SQUARE_BRACKET)) {
             throw new MalformedStructureException(buildErrorMessage(nextToken, "Expected: comma to separate Array values"));
         }
@@ -152,6 +156,10 @@ public final class Parser {
     private void parseObject(TokenizerToken token) {
         this.tokens.add(new ParserToken(token.getStartIndex(), token.getEndIndex(), ParserTokenType.OBJECT_START));
         this.stack.push('{');
+        if(this.depth > 256) {
+            throw new MaxNestingLevelExceededException("Maximum nesting depth exceeded: " + MAX_NESTING_DEPTH);
+        }
+        this.depth++;
         this.tokenizer.advance();
         TokenizerToken nextToken;
 
@@ -198,9 +206,10 @@ public final class Parser {
 
     // The 1st time assertStringKey() is called the token can't be null because we already checked for an empty object
     // In subsequence calls, after we encountered comma the token can be null, so we need this check
+    // Case: {"x": true, -> token after comma is null
     private void assertStringKey(TokenizerToken token, Set<String> names) {
         if (token == null) {
-            throw new MalformedStructureException(buildErrorMessage("Expected: double-quoted value for object name"));
+            throw new MalformedStructureException("Position: " + (this.tokenizer.getBuffer().length - 1) + ". Unexpected end of object. Expected: double-quoted value for object name");
         }
 
         if (!token.getType().equals(TokenizerTokenType.STRING)) {
@@ -214,7 +223,7 @@ public final class Parser {
          */
         String name = new String(this.tokenizer.getBuffer(), token.getStartIndex() + 1, token.getEndIndex() - token.getStartIndex() - 1);
         if (names.contains(name)) {
-            throw new DuplicateObjectNameException("Duplicate object name: " + name);
+            throw new DuplicateObjectNameException("Duplicate object name: '" + name + "'");
         }
         names.add(name);
         isKey = true;
@@ -234,7 +243,7 @@ public final class Parser {
 
     private void parseValue(TokenizerToken token) {
         if (token == null) {
-            return;
+            throw new MalformedStructureException(buildErrorMessage("Expected: a valid JSON value"));
         }
 
         switch (token.getType()) {
@@ -310,19 +319,20 @@ public final class Parser {
         For trailing characters we have to consider 3 cases:
 
             1. Trailing characters that would lead to invalid token: []001. When the tokenizer tries to tokenize 001 it
-            would throw an exception because leading zeros are not allowed we catch that TokenizerException and throw
+            would throw an exception because leading zeros are not allowed we catch that LexicalException and throw
             accordingly to reflect the context, that we got an unexpected character
-            2. Trailing characters that would lead to valid token: []1. The tokenizer will create a token when peek()
-            is called which means the return value of peek() will be a non-null token. In this case, since stack is empty
-            we don't have any nesting, we have trailing characters and throw an exception
+            2. Trailing characters that would lead to valid token: []1. The tokenizer will create a token when nextToken()
+            is called. Not null token and stack is empty we don't have any nesting, we have trailing characters and
+            throw an exception
             3. Insignificant trailing characters(trailing whitespaces): {}\n\t\r When the tokenizer checks if there are
             characters after '}' and finds whitespace characters they are considered insignificant according to rfc and
-            should be ignored. peek() returns the last token or null for cases like this or when we go out of bounds of
+            should be ignored. nextToken() returns the last token or null for cases like this or when we go out of bounds of
             the array.
      */
     private void assertNoTrailingCharacters(TokenizerToken token, ParserTokenType type) {
         this.tokens.add(new ParserToken(token.getStartIndex(), token.getEndIndex(), type));
         this.stack.pop();
+        this.depth--;
 
         if (this.stack.isEmpty()) {
             try {
@@ -358,7 +368,7 @@ public final class Parser {
                     Case 3: Null token = no trailing characters
 
                     Despite advancing the position we don't need to reset because if the token is null it means we have no more
-                    tokens in the tokenizer and if it is not null we have invalid trailing characters so we throw.
+                    tokens in the tokenizer and if it is not null we have invalid trailing characters, so we throw.
                  */
                 this.tokenizer.advance();
                 token = this.tokenizer.nextToken();
@@ -385,15 +395,6 @@ public final class Parser {
                 .append(this.tokenizer.getBuffer()[token.getStartIndex()])
                 .append("'. ")
                 .append(message).toString();
-    }
-
-    private boolean isValue(TokenizerTokenType type) {
-        return type == TokenizerTokenType.STRING
-                || type == TokenizerTokenType.NUMBER
-                || type == TokenizerTokenType.BOOLEAN
-                || type == TokenizerTokenType.NULL
-                || type == TokenizerTokenType.LEFT_CURLY_BRACKET
-                || type == TokenizerTokenType.LEFT_SQUARE_BRACKET;
     }
 
     public List<ParserToken> getTokens() {

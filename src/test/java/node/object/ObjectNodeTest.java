@@ -5,7 +5,9 @@ import org.example.parser.Parser;
 import org.example.tokenizer.Tokenizer;
 import org.junit.jupiter.api.Test;
 
-import java.util.*;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.NoSuchElementException;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatExceptionOfType;
 
@@ -52,11 +54,7 @@ class ObjectNodeTest {
         Tokenizer tokenizer = new Tokenizer(jsonText.toCharArray());
         Parser parser = new Parser(tokenizer);
         ObjectNode node = (ObjectNode) parser.parse();
-        List<Object> values = new ArrayList<>(4);
-        values.add("SGML");
-        values.add("SGML");
-        values.add("Standard Generalized Markup Language");
-        values.add("SGML");
+        Object[] values = {"SGML", "SGML", "Standard Generalized Markup Language", "SGML"};
 
         ObjectNodeAssert.assertThat(node)
                 .hasValues(values);

@@ -1,16 +1,20 @@
 package org.example.node;
 
+import org.example.exception.OutOfRangeException;
+import org.example.exception.SubsequenceIndexViolationException;
+import org.example.parser.ParserToken;
+import org.example.utils.NumericUtils;
+
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.List;
 
-import org.example.exception.SubsequenceIndexViolationException;
-import org.example.parser.ParserToken;
-
 public final class StringNode extends Node {
+    private final String value;
 
     public StringNode(List<ParserToken> tokens, char[] buffer, Node parent) {
         super(tokens, buffer, parent);
+        this.value = new String(this.buffer, this.tokens.get(this.tokenIndex).getStartIndex() + 1, this.tokens.get(this.tokenIndex).getEndIndex() - this.tokens.get(this.tokenIndex).getStartIndex() - 1);
     }
 
     @Override
@@ -21,59 +25,56 @@ public final class StringNode extends Node {
     // plain text
     @Override
     public String value() {
-        // We remove the enclosing quotations marks
-        int startIndex = this.tokens.get(this.tokenIndex).getStartIndex() + 1;
-        int endIndex = this.tokens.get(this.tokenIndex).getEndIndex() - 1;
-        return new String(this.buffer, startIndex, endIndex - startIndex + 1);
+        return this.value;
     }
 
     @Override
     public String toString() {
-        return value();
+        return this.value;
     }
 
     // Classic leetcode problem
     public boolean isSubsequence(String subsequence) {
-        if(subsequence.isEmpty()) {
+        if (subsequence.isEmpty()) {
             return true;
         }
 
         int index = 0;
         String text = value();
-        for(int i = 0; i < text.length(); i++) {
-            if(text.charAt(i) == subsequence.charAt(index)) {
+        for (int i = 0; i < text.length(); i++) {
+            if (text.charAt(i) == subsequence.charAt(index)) {
                 index++;
             }
-            if(index == subsequence.length()) {
+            if (index == subsequence.length()) {
                 return true;
             }
         }
         return false;
     }
+
     /**
      * Extracts a subsequence from the given indices of the string represented by this node.
      * The indices must be in strict ascending order.
-
      *
      * @param indices a list of indices specifying the characters to include in the subsequence.
      * @return a string formed by concatenating the characters of the original string at the specified indices.
-     * @throws IndexOutOfBoundsException if any index is negative or exceeds the length of the string.
+     * @throws IndexOutOfBoundsException          if any index is negative or exceeds the length of the string.
      * @throws SubsequenceIndexViolationException if the indices are not in strict ascending order.
      */
     public String subsequence(List<Integer> indices) {
-        if(indices.isEmpty()) {
+        if (indices.isEmpty()) {
             return "";
         }
 
         StringBuilder sequence = new StringBuilder();
         String text = value();
         int previous = -1;
-        for(int index : indices) {
-            if(index < 0 || index >= text.length()) {
+        for (int index : indices) {
+            if (index < 0 || index >= text.length()) {
                 throw new IndexOutOfBoundsException("index: " + index + ", length: " + text.length());
             }
             // indices are allowed only in ascending order
-            if(index <= previous) {
+            if (index <= previous) {
                 throw new SubsequenceIndexViolationException("Indices must be in strict ascending order. Found: " + index + " after " + previous);
             }
             sequence.append(text.charAt(index));
@@ -86,28 +87,21 @@ public final class StringNode extends Node {
         return convertStringToNumber().intValue();
     }
 
-    public double doubleValue() {
-        return convertStringToNumber().doubleValue();
+    public BigDecimal doubleValue() {
+        return (BigDecimal) convertStringToNumber();
     }
 
     public long longValue() {
         return convertStringToNumber().longValue();
     }
 
-    public BigDecimal bigDecimalValue() {
-        return convertStringToNumber();
-    }
-
-    public BigInteger bigIntegerValue() {
-        return convertStringToNumber().toBigIntegerExact();
-    }
-
-    // Same logic as the convertNumber(), we just add a check where the string might have an invalid number to return 0. e.g. "123q"
-    private BigDecimal convertStringToNumber() {
+    // Same logic as the convertNumber(), we just add a check where the string might have an invalid number to return 0.
+    // e.g. "123q"
+    private Number convertStringToNumber() {
         int digit;
         //Empty string
         if (this.tokens.get(this.tokenIndex).getStartIndex() + 1 == this.tokens.get(this.tokenIndex).getEndIndex()) {
-            return BigDecimal.ZERO;
+            return 0;
         }
 
         int startIndex = this.tokens.get(tokenIndex).getStartIndex() + 1;
@@ -123,7 +117,7 @@ public final class StringNode extends Node {
         int i = startIndex;
         while (i <= endIndex && this.buffer[i] != '.' && this.buffer[i] != 'e' && this.buffer[i] != 'E') {
             if (!(this.buffer[i] >= '0' && this.buffer[i] <= '9')) {
-                return BigDecimal.ZERO;
+                return 0;
             }
             digit = this.buffer[i] - 48;
             integralPart = integralPart.multiply(BigInteger.valueOf(10)).add(BigInteger.valueOf(digit));
@@ -131,14 +125,12 @@ public final class StringNode extends Node {
         }
 
         BigInteger fractionalPart = BigInteger.ZERO;
-        // scaleByPowerOfTen() throws Arithmetic exception when exponent is outside the range of a 32-bit integer.
-        // Pointless to change the type to anything else
         int fractionalLength = 0;
         if (i <= endIndex && this.buffer[i] == '.') {
             i++;
             while (i <= endIndex && this.buffer[i] != 'e' && this.buffer[i] != 'E') {
                 if (!(this.buffer[i] >= '0' && this.buffer[i] <= '9')) {
-                    return BigDecimal.ZERO;
+                    return 0;
                 }
                 digit = this.buffer[i] - 48;
                 fractionalPart = fractionalPart.multiply(BigInteger.valueOf(10)).add(BigInteger.valueOf(digit));
@@ -147,13 +139,11 @@ public final class StringNode extends Node {
             }
         }
 
-        // scaleByPowerOfTen() throws Arithmetic exception when exponent is outside the range of a 32-bit integer.
-        // Pointless to change the type to anything else
         int exponent = 0;
         if (i <= endIndex && (this.buffer[i] == 'e' || this.buffer[i] == 'E')) {
             i++;
             if (!(this.buffer[i] >= '0' && this.buffer[i] <= '9')) {
-                return BigDecimal.ZERO;
+                return 0;
             }
 
             boolean isNegativeExponent = false;
@@ -183,6 +173,23 @@ public final class StringNode extends Node {
         BigDecimal number = bdIntegral.add(bdFraction);
         number = number.scaleByPowerOfTen(exponent);
 
-        return isNegative ? number.negate() : number;
+        number = isNegative ? number.negate() : number;
+        // The numeric value of the string must be within the allowed range
+        if (NumericUtils.MAX_RANGE.compareTo(number) < 0) {
+            throw new OutOfRangeException("Number exceeds the maximum allowed range of 1E308.");
+        }
+        if (NumericUtils.MIN_RANGE.compareTo(number) > 0) {
+            throw new OutOfRangeException("Number exceeds the minimum allowed range of -1E308.");
+        }
+
+        if (NumericUtils.isInteger(number)) {
+            return number.intValue();
+        }
+
+        if (NumericUtils.isLong(number)) {
+            return number.longValue();
+        }
+
+        return number;
     }
 }

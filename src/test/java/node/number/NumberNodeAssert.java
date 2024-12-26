@@ -5,8 +5,6 @@ import org.example.node.NodeType;
 import org.example.node.NumberNode;
 import org.example.parser.ParserTokenType;
 
-import java.math.BigDecimal;
-
 class NumberNodeAssert extends AbstractAssert<NumberNodeAssert, NumberNode> {
 
     NumberNodeAssert(NumberNode actual) {
@@ -16,15 +14,6 @@ class NumberNodeAssert extends AbstractAssert<NumberNodeAssert, NumberNode> {
     // This method is used to initiate the assertion chain.
     static NumberNodeAssert assertThat(NumberNode actual) {
         return new NumberNodeAssert(actual);
-    }
-
-    NumberNodeAssert hasValue(BigDecimal value) {
-        isNotNull();
-        BigDecimal actualValue = actual.value();
-        if (actualValue.compareTo(value) != 0) {
-            failWithMessage("Expected value to be <%s> but was <%s>", value, actualValue);
-        }
-        return this;
     }
 
     NumberNodeAssert hasType() {

@@ -9,7 +9,6 @@ class TokenizerTokenAssert extends AbstractAssert<TokenizerTokenAssert, Tokenize
         super(actual, TokenizerTokenAssert.class);
     }
 
-    // This method is used to initiate the assertion chain.
     static TokenizerTokenAssert assertThat(TokenizerToken actual) {
         return new TokenizerTokenAssert(actual);
     }

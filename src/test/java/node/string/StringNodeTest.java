@@ -6,8 +6,6 @@ import org.example.parser.Parser;
 import org.example.tokenizer.Tokenizer;
 import org.junit.jupiter.api.Test;
 
-import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -85,7 +83,6 @@ class StringNodeTest {
                 .hasIntValue(1345136);
     }
 
-    // toDo: look for Epsilon difference
     @Test
     void shouldReturnDoubleValue() {
         Tokenizer tokenizer = new Tokenizer("\"-1.23E1\"".toCharArray());
@@ -104,26 +101,6 @@ class StringNodeTest {
 
         StringNodeAssert.assertThat(node)
                 .hasLongValue(9223372036854775807L);
-    }
-
-    @Test
-    void shouldReturnBigDecimalValue() {
-        Tokenizer tokenizer = new Tokenizer("\"12345.6789012345678901234567890123456789\"".toCharArray());
-        Parser parser = new Parser(tokenizer);
-        StringNode node = (StringNode) parser.parse();
-
-        StringNodeAssert.assertThat(node)
-                .hasBigDecimalValue(new BigDecimal("12345.6789012345678901234567890123456789"));
-    }
-
-    @Test
-    void shouldReturnBigIntegerValue() {
-        Tokenizer tokenizer = new Tokenizer("\"123456789012345678901234567890123456789\"".toCharArray());
-        Parser parser = new Parser(tokenizer);
-        StringNode node = (StringNode) parser.parse();
-
-        StringNodeAssert.assertThat(node)
-                .hasBigIntegerValue(new BigInteger("123456789012345678901234567890123456789"));
     }
 
     @Test

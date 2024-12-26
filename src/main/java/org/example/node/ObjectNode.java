@@ -10,14 +10,13 @@ import org.example.parser.ParserToken;
 import org.example.parser.ParserTokenType;
 
 public final class ObjectNode extends ContainerNode {
-    Map<String, Node> map;
+    private final Map<String, Node> map;
 
     public ObjectNode(List<ParserToken> tokens, char[] buffer, Node parent) {
         super(tokens, buffer, parent);
         this.map = build();
     }
 
-    // toDo: review inheritance and override we go from Object to String
     // Our Map is of type String, Node and for each node we return its value
     @Override
     public Map<String, Object> value() {
@@ -33,7 +32,7 @@ public final class ObjectNode extends ContainerNode {
     /*
         We can't just do: return hasKey(key) ? this.map.get(key).value : null
 
-        We need to differentiate between they key not existing and the key existing with null value. In the above code
+        We need to distinguish between they key not existing and the key existing with null value. In the above code
         if we return null it is ambiguous
      */
     public Object key(String key) {
@@ -43,11 +42,13 @@ public final class ObjectNode extends ContainerNode {
         return this.map.get(key).value();
     }
 
-    // Return the values for each key. The value of the map is a Node and for each of those we call their value()
-    public List<Object> values() {
-        return this.map.values().stream()
+    // Return the values for each key. The value of the map is a Node and for each of those we call their value(). We don't
+    // return the Node itself
+    public Object[] values() {
+        return this.map.values()
+                .stream()
                 .map(Node::value)
-                .toList();
+                .toArray();
     }
 
     public boolean hasKey(String name) {
@@ -58,6 +59,8 @@ public final class ObjectNode extends ContainerNode {
         return NodeType.OBJECT;
     }
 
+    // We never check if the tokens have the expected structure because if they didn't the parser would have already
+    // handled it
     private Map<String, Node> build() {
         Map<String, Node> object = new LinkedHashMap<>();
         // Skip opening '{'
@@ -79,12 +82,11 @@ public final class ObjectNode extends ContainerNode {
             if (nextToken.getType().equals(ParserTokenType.OBJECT_END)) {
                 break;
             }
+            // If the previous token was not '}' it must have been a comma, and we skip to move to the next value
             nextToken = next();
         }
         return object;
     }
-
-    // toDo: explain why we need to find the matchingEndIndex
 
     private String indent(int indentLevel) {
         // 2 spaces per indent level
@@ -117,7 +119,7 @@ public final class ObjectNode extends ContainerNode {
 
             count++;
             if (count < this.map.size()) {
-                // Add a comma if there are more fields
+                // Comma if there are more fields
                 sb.append(",");
             }
             sb.append("\n");

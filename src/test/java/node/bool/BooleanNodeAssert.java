@@ -17,7 +17,7 @@ class BooleanNodeAssert extends AbstractAssert<BooleanNodeAssert, BooleanNode> {
 
     BooleanNodeAssert hasValue(boolean value) {
         isNotNull();
-        if(!actual.value().equals(value)) {
+        if(!actual.value() == value) {
             failWithMessage("Expected value to be <%s> but was <%s>", value, actual.value());
         }
 

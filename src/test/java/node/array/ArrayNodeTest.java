@@ -6,7 +6,6 @@ import org.example.parser.Parser;
 import org.example.tokenizer.Tokenizer;
 import org.junit.jupiter.api.Test;
 
-import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -35,7 +34,7 @@ class ArrayNodeTest {
         obj.put("value", "New");
         obj.put("onclick", "CreateNewDoc()");
 
-        Object[] nodes = {obj, new BigDecimal(123), "Hello"};
+        Object[] nodes = {obj, 123, "Hello"};
         /*
             The value() method returns an Object[] where each element is the return value of its node's value() call.
             In this case, we have 1 ObjectNode node and ObjectNode's value() returns a LinedHashMap, 1 NumberNode,

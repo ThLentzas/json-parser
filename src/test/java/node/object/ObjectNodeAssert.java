@@ -5,7 +5,7 @@ import org.example.node.NodeType;
 import org.example.node.ObjectNode;
 import org.example.parser.ParserTokenType;
 
-import java.util.List;
+import java.util.Arrays;
 import java.util.Map;
 
 class ObjectNodeAssert extends AbstractAssert<ObjectNodeAssert, ObjectNode> {
@@ -35,9 +35,9 @@ class ObjectNodeAssert extends AbstractAssert<ObjectNodeAssert, ObjectNode> {
     }
 
 
-    ObjectNodeAssert hasValues(List<Object> values) {
+    ObjectNodeAssert hasValues(Object[] values) {
         isNotNull();
-        if (!actual.values().equals(values)) {
+        if (!Arrays.equals(values, actual.values())) {
             failWithMessage("Expected map values to be <%s> but was <%s>", values, actual.values());
         }
         return this;

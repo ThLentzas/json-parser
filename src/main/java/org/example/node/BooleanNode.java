@@ -5,18 +5,20 @@ import org.example.parser.ParserToken;
 import java.util.List;
 
 public final class BooleanNode extends Node {
+    private final boolean value;
 
     public BooleanNode(List<ParserToken> tokens, char[] buffer, Node parent) {
         super(tokens, buffer, parent);
+        this.value = this.buffer[this.tokens.get(this.tokenIndex).getStartIndex()] != 'f';
     }
 
     public int numericValue() {
-        return this.buffer[this.tokens.get(this.tokenIndex).getStartIndex()] == 'f' ? 0 : 1;
+        return this.value ? 1 : 0;
     }
 
     @Override
     public Boolean value() {
-        return this.buffer[this.tokens.get(this.tokenIndex).getStartIndex()] != 'f';
+        return this.value;
     }
 
     @Override

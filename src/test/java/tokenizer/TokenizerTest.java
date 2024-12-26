@@ -1,5 +1,6 @@
 package tokenizer;
 
+import org.example.exception.UTF8DecoderException;
 import org.example.exception.UnexpectedCharacterException;
 import org.example.exception.UnrecognizedTokenException;
 import org.example.exception.UnterminatedValueException;
@@ -156,7 +157,7 @@ class TokenizerTest {
 
     // The following characters in this case are invalid at the top level but valid in an array or an object. The 2nd part
     // is tested in the parser. We can pass control characters directly here because we don't have a Json String but a
-    // Number instead. Read more in tokenizeString()
+    // Number instead. These characters are allowed to be passed as raw bytes. Read more in tokenizeString()
     @ParameterizedTest
     @ValueSource(strings = {"2a", "3,", "4]", "5}", "6 ", "7\n", "8\t", "9\r"})
     void shouldThrowUnexpectedCharacterExceptionForNumberFollowedByInvalidCharacter(String jsonText) {
@@ -251,47 +252,24 @@ class TokenizerTest {
 
     // Always read the comment on top of the class to understand the values passed
     @Test
-    void shouldTokenizeJsonStringWith2ConsecutiveHighSurrogates() {
+    void shouldThrowUTF8DecoderExceptionFor2ConsecutiveHighSurrogates() {
         Tokenizer tokenizer = new Tokenizer("\"A\\uD83D\\uD83DBé\"".toCharArray());
-        TokenizerToken token = tokenizer.nextToken();
 
-        TokenizerTokenAssert.assertThat(token)
-                .hasStartIndex(0)
-                .hasEndIndex(6)
-                .hasTokenType(TokenizerTokenType.STRING);
+        assertThatExceptionOfType(UTF8DecoderException.class).isThrownBy(tokenizer::nextToken);
     }
 
     @Test
-    void shouldTokenizeJsonStringWith2ConsecutiveUnicodeSequencesHighBMP() {
-        Tokenizer tokenizer = new Tokenizer("\"A\\uD83D\\u00E9Bé\"".toCharArray());
-        TokenizerToken token = tokenizer.nextToken();
+    void shouldThrowUTF8DecoderExceptionForUnpairedHighSurrogate() {
+        Tokenizer tokenizer = new Tokenizer("\"A\\uD83Dé\"".toCharArray());
 
-        TokenizerTokenAssert.assertThat(token)
-                .hasStartIndex(0)
-                .hasEndIndex(6)
-                .hasTokenType(TokenizerTokenType.STRING);
+        assertThatExceptionOfType(UTF8DecoderException.class).isThrownBy(tokenizer::nextToken);
     }
 
     @Test
-    void shouldTokenizeJsonStringWithHighSurrogateIntoNonEscapedCharacter() {
-        Tokenizer tokenizer = new Tokenizer("\"A\\uD83DBé\"".toCharArray());
-        TokenizerToken token = tokenizer.nextToken();
+    void shouldThrowUTF8DecoderExceptionForUnpairedLowSurrogate() {
+        Tokenizer tokenizer = new Tokenizer("\"A\\uDE00".toCharArray());
 
-        TokenizerTokenAssert.assertThat(token)
-                .hasStartIndex(0)
-                .hasEndIndex(5)
-                .hasTokenType(TokenizerTokenType.STRING);
-    }
-
-    @Test
-    void shouldTokenizeJsonStringWith2ConsecutiveLowSurrogates() {
-        Tokenizer tokenizer = new Tokenizer("\"A\\uDE00\\uDE00B\\u00E9\"".toCharArray());
-        TokenizerToken token = tokenizer.nextToken();
-
-        TokenizerTokenAssert.assertThat(token)
-                .hasStartIndex(0)
-                .hasEndIndex(6)
-                .hasTokenType(TokenizerTokenType.STRING);
+        assertThatExceptionOfType(UTF8DecoderException.class).isThrownBy(tokenizer::nextToken);
     }
 
     /*
@@ -437,57 +415,6 @@ class TokenizerTest {
                 Arguments.of("-123e+5", 0, 6),
                 Arguments.of("1.2e3", 0, 4),
                 Arguments.of("123.45E6", 0, 7)
-        );
-    }
-
-    static Stream<Arguments> provideStringTestCases() {
-        return Stream.of(
-                Arguments.of("\"abc\"", 0, 4),
-                /*
-                    Surrogate pair values D83D(high) and DE00(low) -> U+1F600 Character: 😀
-
-                    Why we pass "\"A\\uD83D\\uDE00Bé\"" instead of "\"A\uD83D\uDE00Bé\""? I have already explained that in the 2nd
-                    case, the compiler at compile time  will convert the escape sequence to the corresponding character. We need to
-                    test that when the parser gets the unicode escape sequence of a surrogate pair correctly converts it to the
-                    corresponding character.
-
-                    Our output after tokenizing will be ['"', 'A', '?', '?', 'B', 'é', '"']. When we convert this back to string with
-                    we will get "A😀Bé". The decoding process has already been explained. We will work with the above array as byte
-                    array and then follow the UTF_8 decoding process. The '?' is shown because rfc prohibits unicode code points that
-                    fall into the surrogates range to be represented.
-
-                    For consecutive unicode sequences we test only those starting with high because that is the only
-                    case where could potentially have a surrogate pair. We test for high - high, high - BMP, high - non
-                    escaped character. Every other case, does not call handleSurrogatePair(), and it will be converted
-                    individually.
-                 */
-                Arguments.of("\"A\\uD83D\\uDE00Bé\"", 0, 6), // valid surrogate pair
-                Arguments.of("\"A\\uD83D\\uD83DBé\"", 0, 6), // 2 consecutive high surrogates
-                Arguments.of("\"A\\uD83D\\u00E9Bé\"", 0, 6), // 2 consecutive unicode sequences, High - BMP
-                Arguments.of("\"A\\uD83DBé\"", 0, 5), // High into non escaped character
-                Arguments.of("\"A\\uDE00\\uDE00Bé\"", 0, 6), // 2 consecutive low surrogates
-                /*
-                    We have to consider 2 cases based on the number of consecutive backslashes:
-                        Even: For an even number of backslashes we will have n / 2 backslash literals
-
-                    At runtime when the escape sequence is converted by the compiler we have ['"', '\', '\', 'n' "] We
-                    tokenize the array into ['"', '\', 'n', "] -> consecutive backslashes result in a backslash literal
-
-                    For detailed explanation on the logic look at handleEscapeCharacter()
-                 */
-                Arguments.of("\"\\\\n\"", 0, 3), // even
-                /*
-                    At runtime when the escape sequence is converted by the compiler we have ['"', '\', '\', '\', 'n'"] We tokenize
-                    the array into ['"', '\', '\n', "]. We have odd number of backslashes the above input array will consider the 1st
-                    two backslashes as a pair and the remaining backslash MUST be followed by a character that if combined must lead
-                    to a valid escape character. In our case, the next character is 'n'. If we concatenate those into 1 we have as
-                    final array ['"', '\', '\n', "]. This and the above test result in the same output due to the way we handle
-                    the number of backslashes.
-
-                    For detailed explanation on the logic look at tokenizeString()
-                 */
-                Arguments.of("\"\\\\\\n\"", 0, 3), // odd
-                Arguments.of("\"\\u00E9\"", 0, 2) // Codepoint in Basic Multilingual Plane
         );
     }
 }

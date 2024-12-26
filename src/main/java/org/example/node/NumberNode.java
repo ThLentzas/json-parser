@@ -4,12 +4,17 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.List;
 
+import org.example.exception.OutOfRangeException;
 import org.example.parser.ParserToken;
+import org.example.utils.NumericUtils;
 
 public final class NumberNode extends Node {
+    private int index;
+    private final Number value;
 
     public NumberNode(List<ParserToken> tokens, char[] buffer, Node parent) {
         super(tokens, buffer, parent);
+        this.value = convertNumber();
     }
 
     /*
@@ -20,20 +25,20 @@ public final class NumberNode extends Node {
  	    point five places to the left
      */
     @Override
-    public BigDecimal value() {
-        return convertNumber();
+    public Number value() {
+        return this.value;
     }
 
     public int intValue() {
-        return convertNumber().intValue();
+        return this.value.intValue();
     }
 
-    public double doubleValue() {
-        return convertNumber().doubleValue();
+    public BigDecimal doubleValue() {
+        return (BigDecimal) value();
     }
 
     public long longValue() {
-        return convertNumber().longValue();
+        return this.value.longValue();
     }
 
     @Override
@@ -43,41 +48,21 @@ public final class NumberNode extends Node {
 
     @Override
     public String toString() {
-        int startIndex = this.tokens.get(this.tokenIndex).getStartIndex();
-        int endIndex = this.tokens.get(this.tokenIndex).getEndIndex();
-        return new String(this.buffer, startIndex, endIndex - startIndex + 1);
+        return this.value.toString();
     }
 
-    // 1e-2 when unwrapped will have a decimal point, so we can't just look for '.'
-    private boolean isInteger(BigDecimal number) {
-        return number.stripTrailingZeros().scale() <= 0
-                && number.compareTo(BigDecimal.valueOf(Integer.MIN_VALUE)) >= 0
-                && number.compareTo(BigDecimal.valueOf(Integer.MAX_VALUE)) <= 0;
+    public boolean isDouble(Number number) {
+        return NumericUtils.isDouble(number);
     }
 
-    private boolean isDouble(BigDecimal number) {
-        // We need at least 1 decimal point that is not 124.0
-        return number.stripTrailingZeros().scale() > 0
-                && number.compareTo(BigDecimal.valueOf(Double.MIN_VALUE)) >= 0
-                && number.compareTo(BigDecimal.valueOf(Double.MAX_VALUE)) <= 0;
+    public boolean isInteger(Number number) {
+        return NumericUtils.isInteger(number);
     }
 
-    private boolean isLong(BigDecimal number) {
-        return number.stripTrailingZeros().scale() <= 0
-                && number.compareTo(BigDecimal.valueOf(Long.MIN_VALUE)) >= 0
-                && number.compareTo(BigDecimal.valueOf(Long.MAX_VALUE)) <= 0;
+    public boolean isLong(Number number) {
+        return NumericUtils.isLong(number);
     }
 
-    private boolean isBigInteger(BigDecimal number) {
-        try {
-            number.toBigIntegerExact();
-            return true;
-        } catch (ArithmeticException e) {
-            return false;
-        }
-    }
-
-    //toDo: explain overflow/underflow
     /*
         12.56 this number is the same as 12 + 0.56. To get 0.56 we count the number of digits after . and divide the
         number after . with 10 to the power of count. 56 -> 2 digits -> 56 / 10 ^ 2 = 0.56
@@ -89,7 +74,6 @@ public final class NumberNode extends Node {
             2. fractional part while counting its length
             3. exponent
 
-        The "hardest" case we have to consider is: 1.257e1
         1. We keep traversing the buffer until we encounter '.', 'e' or 'E'. From start to that index we build the integral
         part just like we do in the leetcode problems.
             - Get the numeric value of the character(- '0' would also work)
@@ -112,8 +96,8 @@ public final class NumberNode extends Node {
 
         The time complexity is still linear, we make a single scan of the tokens.
      */
-    private BigDecimal convertNumber() {
-        int digit;
+
+    private Number convertNumber() {
         int startIndex = this.tokens.get(this.tokenIndex).getStartIndex();
         int endIndex = this.tokens.get(this.tokenIndex).getEndIndex();
         boolean isNegative = false;
@@ -123,28 +107,59 @@ public final class NumberNode extends Node {
             isNegative = true;
         }
 
-        BigInteger integralPart = BigInteger.ZERO;
-        int i = startIndex;
-        while (i <= endIndex && this.buffer[i] != '.' && this.buffer[i] != 'e' && this.buffer[i] != 'E') {
-            digit = this.buffer[i] - 48;
-            integralPart = integralPart.multiply(BigInteger.valueOf(10)).add(BigInteger.valueOf(digit));
-            i++;
+        this.index = startIndex;
+        BigDecimal number = integralPart(endIndex).add(fractionalPart(endIndex)).scaleByPowerOfTen(exponent(endIndex));
+
+        number = isNegative ? number.negate() : number;
+        if(NumericUtils.MAX_RANGE.compareTo(number) < 0) {
+            throw new OutOfRangeException("Number exceeds the maximum allowed range of 1E308.");
+        }
+        if(NumericUtils.MIN_RANGE.compareTo(number) > 0) {
+            throw new OutOfRangeException("Number exceeds the minimum allowed range of -1E308.");
         }
 
+        if(isInteger(number)) {
+            return number.intValue();
+        }
+
+        if(isLong(number)) {
+            return number.longValue();
+        }
+
+        return number;
+    }
+
+    private BigDecimal integralPart(int endIndex) {
+        BigInteger integralPart = BigInteger.ZERO;
+        int digit;
+        while (this.index <= endIndex && this.buffer[this.index] != '.' && this.buffer[this.index] != 'e' && this.buffer[this.index] != 'E') {
+            digit = this.buffer[this.index] - 48;
+            integralPart = integralPart.multiply(BigInteger.valueOf(10)).add(BigInteger.valueOf(digit));
+            this.index++;
+        }
+        return new BigDecimal(integralPart);
+    }
+
+    private BigDecimal fractionalPart(int endIndex) {
         BigInteger fractionalPart = BigInteger.ZERO;
+        int digit;
         // scaleByPowerOfTen() throws Arithmetic exception when exponent is outside the range of a 32-bit integer.
         // Pointless to change the type to anything else
         int fractionalLength = 0;
-        if (i <= endIndex && this.buffer[i] == '.') {
-            i++;
-            while (i <= endIndex && this.buffer[i] != 'e' && this.buffer[i] != 'E') {
-                digit = this.buffer[i] - 48;
+        if (this.index <= endIndex && this.buffer[this.index] == '.') {
+            this.index++; // Skip decimal
+            while (this.index <= endIndex && this.buffer[this.index] != 'e' && this.buffer[this.index] != 'E') {
+                digit = this.buffer[this.index] - 48;
                 fractionalPart = fractionalPart.multiply(BigInteger.valueOf(10)).add(BigInteger.valueOf(digit));
                 fractionalLength++;
-                i++;
+                this.index++;
             }
         }
 
+        return new BigDecimal(fractionalPart).scaleByPowerOfTen(-fractionalLength);
+    }
+
+    private int exponent(int endIndex) {
         // scaleByPowerOfTen() throws Arithmetic exception when exponent is outside the range of a 32-bit integer.
         // Pointless to change the type to anything else
         // Remember for cases like this:
@@ -152,32 +167,27 @@ public final class NumberNode extends Node {
         // The exponent is everything after 'e' and it will overflow and Java will wrap around to 64770077. This is the
         // expected behaviour. Output: 4E+64770077
         int exponent = 0;
-        if (i <= endIndex && (this.buffer[i] == 'e' || this.buffer[i] == 'E')) {
-            i++;
+        int digit;
+        if (this.index <= endIndex && (this.buffer[this.index] == 'e' || this.buffer[this.index] == 'E')) {
+            this.index++;
             boolean isNegativeExponent = false;
-            if (this.buffer[i] == '-') {
+            if (this.buffer[this.index] == '-') {
                 isNegativeExponent = true;
-                i++;
+                this.index++;
             }
-            if (this.buffer[i] == '+') {
-                i++;
+            if (this.buffer[this.index] == '+') {
+                this.index++;
             }
 
-            while (i <= endIndex) {
-                digit = this.buffer[i] - 48;
+            while (this.index <= endIndex) {
+                digit = this.buffer[this.index] - 48;
                 exponent = exponent * 10 + digit;
-                i++;
+                this.index++;
             }
             if (isNegativeExponent) {
                 exponent = -exponent;
             }
         }
-
-        BigDecimal bdIntegral = new BigDecimal(integralPart);
-        BigDecimal bdFraction = new BigDecimal(fractionalPart).scaleByPowerOfTen(-fractionalLength);
-        BigDecimal number = bdIntegral.add(bdFraction);
-        number = number.scaleByPowerOfTen(exponent);
-
-        return isNegative ? number.negate() : number;
+        return exponent;
     }
 }

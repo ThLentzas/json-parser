@@ -1,11 +1,11 @@
 package org.example.node;
 
-import org.example.parser.ParserToken;
-import org.example.parser.ParserTokenType;
-
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
+
+import org.example.parser.ParserToken;
+import org.example.parser.ParserTokenType;
 
 public final class ArrayNode extends ContainerNode {
     private final Node[] nodes;
@@ -22,7 +22,6 @@ public final class ArrayNode extends ContainerNode {
                 .toArray();
     }
 
-    // toDo: comment all of your if statements
     public Node get(int index) {
         if(index >= this.nodes.length) {
             throw new ArrayIndexOutOfBoundsException("index: " + index + ", length: " + this.nodes.length);
@@ -47,6 +46,7 @@ public final class ArrayNode extends ContainerNode {
             return new Node[]{};
         }
 
+        // We don't know how many node values this array will have, and we want to avoid potential resizes of the ArrayList
         List<Node> list = new LinkedList<>();
         this.tokenIndex++;
         ParserToken nextToken;
