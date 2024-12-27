@@ -120,7 +120,7 @@ methods** for efficiently retrieving and processing data.
 
 ### Get Started
 
-```
+```java
 byte[] bytes = {104, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100};
 Decoder decoder = new Decoder();
 String jsonText = decoder.decode(bytes);
