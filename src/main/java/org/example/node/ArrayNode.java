@@ -23,7 +23,7 @@ public final class ArrayNode extends ContainerNode {
     }
 
     public Node get(int index) {
-        if(index >= this.nodes.length) {
+        if(index < 0 || index >= this.nodes.length) {
             throw new ArrayIndexOutOfBoundsException("index: " + index + ", length: " + this.nodes.length);
         }
         return this.nodes[index];
@@ -32,6 +32,20 @@ public final class ArrayNode extends ContainerNode {
     @Override
     public NodeType type() {
         return NodeType.ARRAY;
+    }
+
+    // read Node
+    @Override
+    public Node path(String name) {
+        return null;
+    }
+
+    @Override
+    public Node path(int index) {
+        if(index < 0 || index >= this.nodes.length) {
+            return AbsentNode.instance();
+        }
+        return this.nodes[index];
     }
 
     // We need deepToString() for deeply nested arrays

@@ -1,23 +1,34 @@
 package node.object;
 
 import org.assertj.core.api.AbstractAssert;
+import org.example.node.Node;
 import org.example.node.NodeType;
 import org.example.node.ObjectNode;
 import org.example.parser.ParserTokenType;
 
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 
 class ObjectNodeAssert extends AbstractAssert<ObjectNodeAssert, ObjectNode> {
     ObjectNodeAssert(ObjectNode actual) {
         super(actual, ObjectNodeAssert.class);
     }
 
-    // This method is used to initiate the assertion chain.
     static ObjectNodeAssert assertThat(ObjectNode actual) {
         return new ObjectNodeAssert(actual);
     }
 
+    ObjectNodeAssert hasKey(String keyName, Object value) {
+        isNotNull();
+        if (!Objects.equals(actual.key(keyName).value(), value)) {
+            failWithMessage("Expected key value to be <%s> but was <%s>", value, value);
+        }
+        return this;
+    }
+
+    // value() as ObjectNode
     ObjectNodeAssert hasValue(Map<String, Object> nodes) {
         isNotNull();
         if (!actual.value().equals(nodes)) {
@@ -26,14 +37,13 @@ class ObjectNodeAssert extends AbstractAssert<ObjectNodeAssert, ObjectNode> {
         return this;
     }
 
-    ObjectNodeAssert hasKey(String key, Object value) {
+    ObjectNodeAssert hasKeys(Set<String> keys) {
         isNotNull();
-        if (!actual.key(key).equals(value)) {
-            failWithMessage("Expected key value to be <%s> but was <%s>", value, actual.key(key));
+        if (!actual.keys().equals(keys)) {
+            failWithMessage("Expected key value to be <%s> but was <%s>", keys, actual.keys());
         }
         return this;
     }
-
 
     ObjectNodeAssert hasValues(Object[] values) {
         isNotNull();

@@ -23,6 +23,16 @@ public final class NullNode extends Node {
     }
 
     @Override
+    public Node path(String name) {
+        return AbsentNode.instance();
+    }
+
+    @Override
+    public Node path(int index) {
+        return AbsentNode.instance();
+    }
+
+    @Override
     public String toString() {
         return "null";
     }

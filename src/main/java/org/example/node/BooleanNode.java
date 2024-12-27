@@ -27,6 +27,16 @@ public final class BooleanNode extends Node {
     }
 
     @Override
+    public Node path(String name) {
+        return AbsentNode.instance();
+    }
+
+    @Override
+    public Node path(int index) {
+        return AbsentNode.instance();
+    }
+
+    @Override
     public String toString() {
         return this.buffer[this.tokens.get(this.tokenIndex).getStartIndex()] == 'f' ? "false" : "true";
     }

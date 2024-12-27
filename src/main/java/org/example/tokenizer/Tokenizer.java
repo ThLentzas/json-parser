@@ -69,7 +69,7 @@ public final class Tokenizer {
         }
 
         /*
-            When peek() is called by parser's assertNoTrailingCharacters() we need to consider the case 3 mentioned in
+            When nextToken() is called by parser's assertNoTrailingCharacters() we need to consider the case 3 mentioned in
             that method.
             "{}\t\b\r\n   " Any whitespace characters after structural characters are considered insignificant.
 

@@ -22,6 +22,16 @@ public final class StringNode extends Node {
         return NodeType.STRING;
     }
 
+    @Override
+    public Node path(String name) {
+        return AbsentNode.instance();
+    }
+
+    @Override
+    public Node path(int index) {
+        return AbsentNode.instance();
+    }
+
     // plain text
     @Override
     public String value() {

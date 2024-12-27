@@ -1,5 +1,5 @@
 
 ”
-java:S3776d"RRefactor this method to reduce its Cognitive Complexity from 39 to the 15 allowed.(ЛђШ78Ле€ЎА2J$ff1cc570-6e70-40a0-93b6-69bf24584cf7
+java:S3776n"RRefactor this method to reduce its Cognitive Complexity from 39 to the 15 allowed.(ЛђШ78Ле€ЎА2J$a08d91b9-a074-4684-a6f6-35d445819c5e
 €
-java:S6541d"ЕA "Brain Method" was detected. Refactor it to reduce at least one of the following metrics: LOC from 81 to 64, Complexity from 32 to 14, Nesting Level from 3 to 2, Number of Variables from 13 to 6.(ЛђШ78Не€ЎА2J$b19be8df-5fa0-431b-9fb6-bfe2e2ebd347
+java:S6541n"ЕA "Brain Method" was detected. Refactor it to reduce at least one of the following metrics: LOC from 81 to 64, Complexity from 32 to 14, Nesting Level from 3 to 2, Number of Variables from 13 to 6.(ЛђШ78Не€ЎА2J$22f48e3f-031e-4b4c-a748-465a93ff2179

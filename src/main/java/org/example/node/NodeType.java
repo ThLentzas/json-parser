@@ -6,5 +6,6 @@ public enum NodeType {
     NUMBER,
     STRING,
     BOOLEAN,
-    NULL
+    NULL,
+    ABSENT
 }

@@ -4,7 +4,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
+import java.util.Set;
 
 import org.example.parser.ParserToken;
 import org.example.parser.ParserTokenType;
@@ -30,16 +30,20 @@ public final class ObjectNode extends ContainerNode {
     }
 
     /*
-        We can't just do: return hasKey(key) ? this.map.get(key).value : null
+        When the key has as value null the return type will be a NullNode. When the key does not exist it will return null
+        {"key": null} Calling key("key") will return a NullNode the key exists with null as value.
+        {"anotherKey": 123} Calling key("key") will return null.
 
-        We need to distinguish between they key not existing and the key existing with null value. In the above code
-        if we return null it is ambiguous
+        We would need a way to distinguish the two, only if we return the value of the node and not the node itself.
+        The value of the NullNode is null, and we couldn't distinguish between the key not existing or existing and its
+        value is null
      */
-    public Object key(String key) {
-        if (!hasKey(key)) {
-            throw new NoSuchElementException("Key '" + key + "' not found");
-        }
-        return this.map.get(key).value();
+    public Node key(String name) {
+        return hasKey(name) ? this.map.get(name) : null;
+    }
+
+    public Set<String> keys() {
+        return this.map.keySet();
     }
 
     // Return the values for each key. The value of the map is a Node and for each of those we call their value(). We don't
@@ -59,8 +63,49 @@ public final class ObjectNode extends ContainerNode {
         return NodeType.OBJECT;
     }
 
-    // We never check if the tokens have the expected structure because if they didn't the parser would have already
-    // handled it
+    /*
+        Safe accessor for child nodes. Instead of throwing an exception when a field does not exist, we return an
+        “absent node” that indicates no such field. We allow traversing nested nodes without having to constantly check
+        for existence. It is the same logic as field() but it allows to chain for nested object values without throwing
+        NPE if field is called in a null value.
+
+        {
+          "firstName": "Alice",
+          "lastName": "Anderson",
+          "address": {
+            "street": "123 Maple Street",
+            "city": "Wonderland",
+            "metadata": {
+              "locationCode": "WL-XYZ",
+              "verified": true
+            }
+          },
+          "emails": [
+            { "type": "home", "email": "alice@home.com" },
+            { "type": "work", "email": "alice@company.com" }
+          ]
+        }
+
+        path("firstName") would return a StringNode whose value is "Alice"
+        path("address").path("city") would return a StringNode whose value is "Wonderland"
+        path("address").path("metadata").path("locationCode") would return a StringNode whose value is "WL-XYZ"
+        path("address").path("zipCode") would return an absent node (rather than throwing an exception)
+
+        Note: This method will have an actual implementation for container nodes. Any other node's implementation will
+        return an AbsentNode.
+     */
+    @Override
+    public Node path(String name) {
+        Node child = this.map.get(name);
+        return child == null ? AbsentNode.instance() : child;
+    }
+
+    @Override
+    public Node path(int index) {
+        return AbsentNode.instance();
+    }
+
+    // We never check if the tokens have the expected structure because if they didn't the parser would have already handled it
     private Map<String, Node> build() {
         Map<String, Node> object = new LinkedHashMap<>();
         // Skip opening '{'

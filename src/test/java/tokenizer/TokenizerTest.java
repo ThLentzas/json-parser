@@ -363,10 +363,10 @@ class TokenizerTest {
     }
 
     @Test
-    void shouldThrowUnexpectedCharacterExceptionForIncompleteCharacterEscapeSequence() {
+    void shouldThrowUnterminatedValueExceptionForIncompleteCharacterEscapeSequence() {
         Tokenizer tokenizer = new Tokenizer("\"\\".toCharArray());
 
-        assertThatExceptionOfType(UnexpectedCharacterException.class).isThrownBy(tokenizer::nextToken)
+        assertThatExceptionOfType(UnterminatedValueException.class).isThrownBy(tokenizer::nextToken)
                 .withMessage("Position: 1. Incomplete character escape sequence");
     }
 

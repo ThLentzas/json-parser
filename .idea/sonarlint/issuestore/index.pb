@@ -721,8 +721,6 @@ b
 2src/main/test_suite/y_structure_true_in_array.json,e\0\e0326e78699b24ecdf242845d792455eb154e323
 e
 5src/main/test_suite/y_structure_whitespace_array.json,0\b\0b0de3a45997c20a4f25e9f459faa0f7ab155558
-w
-Gsrc/main/java/org/example/exception/MaxNestingLevelExceedException.java,5\3\530d9ab2c872190bc3587ff79a59bca09da740ea
 x
 Hsrc/main/test_suite/n_object_trailing_comment_slash_open_incomplete.json,3\7\37765a50fd22bd1cf0b04aca141eb0d5b7f238f1
 l
@@ -734,3 +732,11 @@ Isrc/main/java/org/example/exception/MaxNestingLevelExceededException.java,2\0\
 :
 
 .gitignore,a\5\a5cc2925ca8258af241be7e5b0381edf30266302
+=
+src/Readme.md,7\e\7edb62db4f1c3d607e349250cd88d0d2f77c707b
+=
+src/README.md,8\3\83aa3445a7f65c488e8ccd0a5ad0e80c174dc329
+_
+/src/main/java/org/example/node/MissingNode.java,0\d\0d8c3b4ad05a97ff55f9d0a9d5feed4108f7dda7
+^
+.src/main/java/org/example/node/AbsentNode.java,a\7\a76045b74b52b08a647a510f39657fee90907292

@@ -1,5 +1,7 @@
 package node.object;
 
+import org.example.node.Node;
+import org.example.node.NodeType;
 import org.example.node.ObjectNode;
 import org.example.parser.Parser;
 import org.example.tokenizer.Tokenizer;
@@ -7,11 +9,29 @@ import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.NoSuchElementException;
+import java.util.Set;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThatExceptionOfType;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class ObjectNodeTest {
+
+    @Test
+    void shouldHaveKey() {
+        String jsonText = """
+              {
+                "ID": "SGML",
+                "SortAs": "SGML",
+                "GlossTerm": "Standard Generalized Markup Language",
+                "Acronym": "SGML"
+              }
+           """;
+        Tokenizer tokenizer = new Tokenizer(jsonText.toCharArray());
+        Parser parser = new Parser(tokenizer);
+        ObjectNode node = (ObjectNode) parser.parse();
+
+        ObjectNodeAssert.assertThat(node)
+                .hasKey("SortAs", "SGML");
+    }
 
     // Returns a Map that represents the value of the node
     @Test
@@ -40,9 +60,27 @@ class ObjectNodeTest {
                 .hasValue(fields);
     }
 
+    @Test
+    void shouldHaveKeys() {
+        String jsonText = """
+              {
+                "ID": "SGML",
+                "SortAs": "SGML",
+                "GlossTerm": "Standard Generalized Markup Language",
+                "Acronym": "SGML"
+              }
+           """;
+        Tokenizer tokenizer = new Tokenizer(jsonText.toCharArray());
+        Parser parser = new Parser(tokenizer);
+        ObjectNode node = (ObjectNode) parser.parse();
+
+        ObjectNodeAssert.assertThat(node)
+                .hasKeys(Set.of("ID", "SortAs", "GlossTerm", "Acronym"));
+    }
+
     // Returns the map values
     @Test
-    void shouldHaveMapValues() {
+    void shouldHaveValues() {
         String jsonText = """
               {
                 "ID": "SGML",
@@ -61,39 +99,61 @@ class ObjectNodeTest {
     }
 
     @Test
-    void shouldHaveKey() {
+    void shouldReturnNodeFromPath() {
         String jsonText = """
               {
-                "ID": "SGML",
-                "SortAs": "SGML",
-                "GlossTerm": "Standard Generalized Markup Language",
-                "Acronym": "SGML"
+                "firstName": "Alice",
+                "lastName": "Anderson",
+                "address": {
+                  "street": "123 Maple Street",
+                  "city": "Wonderland",
+                  "metadata": {
+                    "locationCode": "WL-XYZ",
+                    "verified": true
+                  }
+                },
+                "emails": [
+                  { "type": "home", "email": "alice@home.com" },
+                  { "type": "work", "email": "alice@company.com" }
+                ]
               }
            """;
         Tokenizer tokenizer = new Tokenizer(jsonText.toCharArray());
         Parser parser = new Parser(tokenizer);
         ObjectNode node = (ObjectNode) parser.parse();
+        Node child = node.path("address")
+                .path("metadata")
+                .path("locationCode");
 
-        ObjectNodeAssert.assertThat(node)
-                .hasKey("SortAs", "SGML");
+        assertThat(child.value()).isEqualTo("WL-XYZ");
     }
 
     @Test
-    void shouldThrowNoSuchElementExceptionWhenKeyDoesNotExist() {
+    void shouldReturnAbsentNodeFromPath() {
         String jsonText = """
               {
-                "ID": "SGML",
-                "SortAs": "SGML",
-                "GlossTerm": "Standard Generalized Markup Language",
-                "Acronym": "SGML"
+                "firstName": "Alice",
+                "lastName": "Anderson",
+                "address": {
+                  "street": "123 Maple Street",
+                  "city": "Wonderland",
+                  "metadata": {
+                    "locationCode": "WL-XYZ",
+                    "verified": true
+                  }
+                },
+                "emails": [
+                  { "type": "home", "email": "alice@home.com" },
+                  { "type": "work", "email": "alice@company.com" }
+                ]
               }
            """;
         Tokenizer tokenizer = new Tokenizer(jsonText.toCharArray());
         Parser parser = new Parser(tokenizer);
         ObjectNode node = (ObjectNode) parser.parse();
+        Node child = node.path("address")
+                .path("zipCode");
 
-       assertThatExceptionOfType(NoSuchElementException.class)
-               .isThrownBy(() -> node.key("src"))
-               .withMessage("Key 'src' not found");
+        assertThat(child.type()).isEqualTo(NodeType.ABSENT);
     }
 }
