@@ -61,6 +61,7 @@ public final class NumberNode extends Node {
         return this.value.toString();
     }
 
+    // Don't use BigDecimal with Double.valueOf() use the string constructor instead
     public boolean isDouble(Number number) {
         return NumericUtils.isDouble(number);
     }

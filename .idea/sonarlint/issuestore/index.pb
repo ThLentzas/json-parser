@@ -732,12 +732,6 @@ Isrc/main/java/org/example/exception/MaxNestingLevelExceededException.java,2\0\
 :
 
 .gitignore,a\5\a5cc2925ca8258af241be7e5b0381edf30266302
-=
-src/Readme.md,7\e\7edb62db4f1c3d607e349250cd88d0d2f77c707b
-=
-src/README.md,8\3\83aa3445a7f65c488e8ccd0a5ad0e80c174dc329
-_
-/src/main/java/org/example/node/MissingNode.java,0\d\0d8c3b4ad05a97ff55f9d0a9d5feed4108f7dda7
 ^
 .src/main/java/org/example/node/AbsentNode.java,a\7\a76045b74b52b08a647a510f39657fee90907292
 9
