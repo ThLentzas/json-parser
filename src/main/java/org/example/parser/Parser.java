@@ -33,6 +33,10 @@ public final class Parser {
     private final List<ParserToken> tokens;
     private final Tokenizer tokenizer;
     private int depth;
+    /*
+        Every time we encounter '[' or '{' we increase the current depth by 1 and everytime we encounter ']' or '}' we
+        decrement by 1. Example: [{}, {}, [[]]] 1 -> 2 -> 1 ... 3 -> 2 -> 1
+     */
     private static final int MAX_NESTING_DEPTH = 256;
     /*
         The use of stack helps us to keep track of trailing characters and nesting. e.g. "[[]]" ']' is valid after the 1st ']'
