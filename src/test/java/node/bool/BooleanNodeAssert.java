@@ -1,9 +1,9 @@
 package node.bool;
 
 import org.assertj.core.api.AbstractAssert;
-import org.example.node.BooleanNode;
-import org.example.node.NodeType;
-import org.example.parser.ParserTokenType;
+import org.example.core.node.BooleanNode;
+import org.example.core.node.NodeType;
+import org.example.core.parser.ParserTokenType;
 
 class BooleanNodeAssert extends AbstractAssert<BooleanNodeAssert, BooleanNode> {
 

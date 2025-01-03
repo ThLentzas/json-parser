@@ -1,9 +1,9 @@
 package node.string;
 
 import org.assertj.core.api.AbstractAssert;
-import org.example.node.NodeType;
-import org.example.node.StringNode;
-import org.example.parser.ParserTokenType;
+import org.example.core.node.NodeType;
+import org.example.core.node.StringNode;
+import org.example.core.parser.ParserTokenType;
 
 import java.math.BigDecimal;
 import java.util.List;

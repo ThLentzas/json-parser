@@ -1,9 +1,9 @@
 package node.nullnode;
 
 import org.assertj.core.api.AbstractAssert;
-import org.example.node.NodeType;
-import org.example.node.NullNode;
-import org.example.parser.ParserTokenType;
+import org.example.core.node.NodeType;
+import org.example.core.node.NullNode;
+import org.example.core.parser.ParserTokenType;
 
 class NullNodeAssert extends AbstractAssert<NullNodeAssert, NullNode> {
 

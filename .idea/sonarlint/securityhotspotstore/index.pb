@@ -736,3 +736,13 @@ Isrc/main/java/org/example/exception/MaxNestingLevelExceededException.java,2\0\
 .src/main/java/org/example/node/AbsentNode.java,a\7\a76045b74b52b08a647a510f39657fee90907292
 9
 	README.md,8\e\8ec9a00bfd09b3190ac6b22251dbb1aa95a0579d
+Y
+)src/main/java/org/example/core/Dummy.java,3\7\37f92459ff565894ffbe90cf8f2fdea355e61037
+a
+1src/main/java/org/example/core/parser/Parser.java,1\f\1f8f422e167139e1ea39b316108b512dece1a57b
+f
+6src/main/java/org/example/core/utils/NumericUtils.java,b\0\b02f8b9ff5072ef19c2a17e862695ae6c8b37c91
+a
+1src/main/java/org/example/core/AbstractToken.java,2\5\25b021ebce2bae37a5b08c17aa41545e3b44aa5a
+c
+3src/main/java/org/example/core/node/NumberNode.java,a\c\acc2dcebd49551a889a770911f8c6a7e063a2d1b

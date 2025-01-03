@@ -1,9 +1,9 @@
 package node.number;
 
 import org.assertj.core.api.AbstractAssert;
-import org.example.node.NodeType;
-import org.example.node.NumberNode;
-import org.example.parser.ParserTokenType;
+import org.example.core.node.NodeType;
+import org.example.core.node.NumberNode;
+import org.example.core.parser.ParserTokenType;
 
 class NumberNodeAssert extends AbstractAssert<NumberNodeAssert, NumberNode> {
 

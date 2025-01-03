@@ -1,12 +1,12 @@
 package parser;
 
-import org.example.exception.DuplicateObjectNameException;
-import org.example.exception.MalformedStructureException;
-import org.example.exception.UnrecognizedTokenException;
-import org.example.parser.Parser;
-import org.example.parser.ParserToken;
-import org.example.parser.ParserTokenType;
-import org.example.tokenizer.Tokenizer;
+import org.example.core.exception.DuplicateObjectNameException;
+import org.example.core.exception.MalformedStructureException;
+import org.example.core.exception.UnrecognizedTokenException;
+import org.example.core.parser.Parser;
+import org.example.core.parser.ParserToken;
+import org.example.core.parser.ParserTokenType;
+import org.example.core.tokenizer.Tokenizer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;

@@ -1,8 +1,8 @@
 package tokenizer;
 
 import org.assertj.core.api.AbstractAssert;
-import org.example.tokenizer.TokenizerToken;
-import org.example.tokenizer.TokenizerTokenType;
+import org.example.core.tokenizer.TokenizerToken;
+import org.example.core.tokenizer.TokenizerTokenType;
 
 class TokenizerTokenAssert extends AbstractAssert<TokenizerTokenAssert, TokenizerToken> {
     TokenizerTokenAssert(TokenizerToken actual) {

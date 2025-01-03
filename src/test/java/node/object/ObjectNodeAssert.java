@@ -1,10 +1,9 @@
 package node.object;
 
 import org.assertj.core.api.AbstractAssert;
-import org.example.node.Node;
-import org.example.node.NodeType;
-import org.example.node.ObjectNode;
-import org.example.parser.ParserTokenType;
+import org.example.core.node.NodeType;
+import org.example.core.node.ObjectNode;
+import org.example.core.parser.ParserTokenType;
 
 import java.util.Arrays;
 import java.util.Map;

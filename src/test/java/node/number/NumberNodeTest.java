@@ -1,8 +1,8 @@
 package node.number;
 
-import org.example.node.NumberNode;
-import org.example.parser.Parser;
-import org.example.tokenizer.Tokenizer;
+import org.example.core.node.NumberNode;
+import org.example.core.parser.Parser;
+import org.example.core.tokenizer.Tokenizer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;

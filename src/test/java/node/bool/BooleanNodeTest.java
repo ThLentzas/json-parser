@@ -1,8 +1,8 @@
 package node.bool;
 
-import org.example.node.BooleanNode;
-import org.example.parser.Parser;
-import org.example.tokenizer.Tokenizer;
+import org.example.core.node.BooleanNode;
+import org.example.core.parser.Parser;
+import org.example.core.tokenizer.Tokenizer;
 import org.junit.jupiter.api.Test;
 
 class BooleanNodeTest {

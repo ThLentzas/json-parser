@@ -1,8 +1,8 @@
 package node.nullnode;
 
-import org.example.node.NullNode;
-import org.example.parser.Parser;
-import org.example.tokenizer.Tokenizer;
+import org.example.core.node.NullNode;
+import org.example.core.parser.Parser;
+import org.example.core.tokenizer.Tokenizer;
 import org.junit.jupiter.api.Test;
 
 class NullNodeTest {

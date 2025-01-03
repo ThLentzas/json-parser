@@ -1,9 +1,9 @@
 package node.array;
 
 import org.assertj.core.api.AbstractAssert;
-import org.example.node.ArrayNode;
-import org.example.node.NodeType;
-import org.example.parser.ParserTokenType;
+import org.example.core.node.ArrayNode;
+import org.example.core.node.NodeType;
+import org.example.core.parser.ParserTokenType;
 
 import java.util.Arrays;
 

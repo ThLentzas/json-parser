@@ -1,8 +1,8 @@
 package decoder;
 
-import org.example.decoder.Decoder;
-import org.example.exception.MalformedStructureException;
-import org.example.exception.UTF8DecoderException;
+import org.example.core.decoder.Decoder;
+import org.example.core.exception.MalformedStructureException;
+import org.example.core.exception.UTF8DecoderException;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;

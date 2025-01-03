@@ -1,10 +1,10 @@
 package node.object;
 
-import org.example.node.Node;
-import org.example.node.NodeType;
-import org.example.node.ObjectNode;
-import org.example.parser.Parser;
-import org.example.tokenizer.Tokenizer;
+import org.example.core.node.Node;
+import org.example.core.node.NodeType;
+import org.example.core.node.ObjectNode;
+import org.example.core.parser.Parser;
+import org.example.core.tokenizer.Tokenizer;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashMap;

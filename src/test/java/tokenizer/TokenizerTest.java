@@ -1,12 +1,12 @@
 package tokenizer;
 
-import org.example.exception.UTF8DecoderException;
-import org.example.exception.UnexpectedCharacterException;
-import org.example.exception.UnrecognizedTokenException;
-import org.example.exception.UnterminatedValueException;
-import org.example.tokenizer.Tokenizer;
-import org.example.tokenizer.TokenizerToken;
-import org.example.tokenizer.TokenizerTokenType;
+import org.example.core.exception.UTF8DecoderException;
+import org.example.core.exception.UnexpectedCharacterException;
+import org.example.core.exception.UnrecognizedTokenException;
+import org.example.core.exception.UnterminatedValueException;
+import org.example.core.tokenizer.Tokenizer;
+import org.example.core.tokenizer.TokenizerToken;
+import org.example.core.tokenizer.TokenizerTokenType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;

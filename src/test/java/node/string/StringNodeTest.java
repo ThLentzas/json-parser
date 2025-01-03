@@ -1,9 +1,9 @@
 package node.string;
 
-import org.example.exception.SubsequenceIndexViolationException;
-import org.example.node.StringNode;
-import org.example.parser.Parser;
-import org.example.tokenizer.Tokenizer;
+import org.example.core.exception.SubsequenceIndexViolationException;
+import org.example.core.node.StringNode;
+import org.example.core.parser.Parser;
+import org.example.core.tokenizer.Tokenizer;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
